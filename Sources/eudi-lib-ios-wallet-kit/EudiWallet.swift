@@ -192,9 +192,13 @@ public final class EudiWallet: ObservableObject {
 	/// - Parameter sampleDataFiles: Names of sample files provided in the app bundle
 	public func loadSampleData(sampleDataFiles: [String]? = nil) async throws {
 		try? storageService.deleteDocuments()
-		let docSamples = (sampleDataFiles ?? ["EUDI_sample_data"]).compactMap { Data(name:$0) }
+		var docSamples = (sampleDataFiles ?? ["EUDI_sample_data"]).compactMap { Data(name:$0) }
 			.compactMap(SignUpResponse.decomposeCBORSignupResponse(data:)).flatMap {$0}
 			.map { Document(docType: $0.docType, docDataType: .cbor, data: $0.issData, privateKeyType: .x963EncodedP256, privateKey: $0.pkData, createdAt: Date.distantPast, modifiedAt: nil) }
+		if let filepath = Bundle.main.path(forResource: "age_attest_test", ofType: "txt"), let contents = try? String(contentsOfFile: filepath), let ageData = Data(base64Encoded: contents.trimmingCharacters(in: .whitespacesAndNewlines)) {
+			let ageSample = Document(docType: "eu.europa.ec.eudiw.pseudonym.age_over_18.1", docDataType: .cbor, data: ageData, privateKeyType: .x963EncodedP256, privateKey: CoseKeyPrivate(crv: .p256).getx963Representation(), createdAt: Date.distantPast, modifiedAt: nil)
+			docSamples.append(ageSample)
+		}
 		do {
 		for docSample in docSamples {
 			try storageService.saveDocument(docSample, allowOverwrite: true)
