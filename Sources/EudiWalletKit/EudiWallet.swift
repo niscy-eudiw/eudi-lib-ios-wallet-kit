@@ -98,6 +98,13 @@ public final class EudiWallet: ObservableObject {
 		return try await finalizeIssuing(id: id, data: data, docType: docType, format: format, issueReq: issueReq, openId4VCIService: openId4VCIService)
 	}
 	
+	public func issueDocumentBatch(docTypes: [String], format: DataFormat = .cbor, promptMessage: String? = nil, useSecureEnclave: Bool = true, claimSet: ClaimSet? = nil) async throws -> [WalletStorage.Document] {
+		guard format == .cbor else { throw fatalError("jwt format not implemented") }
+		var (issueReq, openId4VCIService, id) = try await prepareIssuing(docType: docTypes.joined(separator: ", "), promptMessage: promptMessage)
+		let docsData = try await openId4VCIService.issueDocumentBatch(docTypes: docTypes, format: format, useSecureEnclave: useSecureEnclave)
+		return try await issueMultipleDocuments(docsData: docsData, format: format, id: id, issueReq: issueReq, openId4VCIService: openId4VCIService)
+	}
+	
 	func finalizeIssuing(id: String, data: Data, docType: String?, format: DataFormat, issueReq: IssueRequest, openId4VCIService: OpenId4VCIService) async throws -> WalletStorage.Document  {
 		let iss = IssuerSigned(data: [UInt8](data))
 		let deviceResponse = iss != nil ? nil : DeviceResponse(data: [UInt8](data))
@@ -146,11 +153,16 @@ public final class EudiWallet: ObservableObject {
 		guard format == .cbor else { throw fatalError("jwt format not implemented") }
 		var (issueReq, openId4VCIService, id) = try await prepareIssuing(docType: docTypes.map(\.docType).joined(separator: ", "), promptMessage: promptMessage)
 		let docsData = try await openId4VCIService.issueDocumentsByOfferUrl(offerUri: offerUri, docTypes: docTypes, format: format, useSecureEnclave: useSecureEnclave, claimSet: claimSet)
+		return try await issueMultipleDocuments(docsData: docsData, format: format, id: id, issueReq: issueReq, openId4VCIService: openId4VCIService)
+	}
+	
+	func issueMultipleDocuments(docsData: [Data], format: DataFormat, id: String, issueReq: IssueRequest, openId4VCIService: OpenId4VCIService)  async throws -> [WalletStorage.Document] {
 		var documents = [WalletStorage.Document]()
 		for (i, docData) in docsData.enumerated() {
-			if i > 0 { (issueReq, openId4VCIService, id) = try await prepareIssuing(docType: nil) }
+		var idNext: String?, issueReqNext: IssueRequest?, openId4VCIServiceNext: OpenId4VCIService?
+			if i > 0 { (issueReqNext, openId4VCIServiceNext, idNext) = try await prepareIssuing(docType: nil) }
 			openId4VCIService.usedSecureEnclave = useSecureEnclave && SecureEnclave.isAvailable
-			documents.append(try await finalizeIssuing(id: id, data: docData, docType: nil, format: format, issueReq: issueReq, openId4VCIService: openId4VCIService))
+			documents.append(try await finalizeIssuing(id: i == 0 ? id : idNext!, data: docData, docType: nil, format: format, issueReq: i == 0 ? issueReq : issueReqNext!, openId4VCIService: i == 0 ? openId4VCIService : openId4VCIServiceNext!))
 		}
 		return documents
 	}
