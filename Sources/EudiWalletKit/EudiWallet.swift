@@ -69,7 +69,7 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 	/// let config = EudiWalletConfiguration(trustedReaderCertificates: [Data(name: "eudi_pid_issuer_ut", ext: "der")!])
 	/// let wallet = try! EudiWallet(eudiWalletConfig: config)
 	/// ```
-	public init(eudiWalletConfig: EudiWalletConfiguration, storageService: (any DataStorageService)? = nil, openID4VpConfig: OpenId4VpConfiguration? = nil, openID4VciConfigurations: [String: OpenId4VciConfiguration]? = nil, networking: (any NetworkingProtocol)? = nil, secureAreas: [any SecureArea]? = nil, transactionLogger: (any TransactionLogger)? = nil, modelFactory: (any DocClaimsDecodableFactory)? = nil) throws {
+	public init(eudiWalletConfig: EudiWalletConfiguration, storageService: (any DataStorageService)? = nil, openID4VpConfig: OpenId4VpConfiguration? = nil, openID4VciConfigurations: [String: OpenId4VciConfiguration]? = nil, networking: (any NetworkingProtocol)? = nil, secureAreas: [any SecureArea]? = nil, transactionLogger: (any TransactionLogger)? = nil, modelFactory: (any DocClaimsDecodableFactory)? = nil, zkSystemRepository: ZkSystemRepository? = nil) throws {
 		try Self.validateServiceParams(serviceName: eudiWalletConfig.serviceName)
 		self.eudiWalletConfig = eudiWalletConfig
 		self.openID4VpConfig = openID4VpConfig ?? OpenId4VpConfiguration()
