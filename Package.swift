@@ -1,10 +1,11 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
 	name: "EudiWalletKit",
+
 	platforms: [.macOS(.v14), .iOS(.v16), .watchOS(.v10)],
 	products: [
 		// Products define the executables and libraries a package produces, making them visible to other packages.
@@ -38,7 +39,14 @@ let package = Package(
 				.product(name: "FileLogging", package: "swift-log-file"),
 				.product(name: "StatiumSwift", package: "eudi-lib-ios-statium-swift"),
 				.product(name: "Copyable", package: "SwiftCopyableMacro"),
-			]
+			],
+			swiftSettings: [
+        		.enableUpcomingFeature("DisableOutwardActorInference"),
+        		.enableUpcomingFeature("GlobalActorIsolatedTypesUsability"),
+        		.enableUpcomingFeature("InferIsolatedConformances"),
+        		.enableUpcomingFeature("InferSendableFromCaptures"),
+        		.enableUpcomingFeature("NonisolatedNonsendingByDefault")
+    	],
 		),
 		.testTarget(
 			name: "EudiWalletKitTests",
