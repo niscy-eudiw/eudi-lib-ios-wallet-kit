@@ -25,7 +25,7 @@ import SwiftyJSON
 import OpenID4VCI
 
 /// Storage manager. Provides services and view models
-public final class StorageManager: ObservableObject, @unchecked Sendable {
+public final class StorageManager: ObservableObject {
 	/// A static constant array containing known document types.
 	/// This array includes document types from `EuPidModel` and `IsoMdlModel`.
 	/// - Note: The document types included are `euPidDocType` and `isoDocType`.
@@ -323,7 +323,7 @@ public final class StorageManager: ObservableObject, @unchecked Sendable {
 		do {
 			try await storageService.deleteDocument(id: id, status: status)
 			if status == .issued {
-				_ = await MainActor.run { docModels.remove(at: index) }
+				docModels.remove(at: index)
 				await refreshPublishedVars()
 			}
 			else if status == .pending { _ = await MainActor.run { pendingDocuments.remove(at: index) }}

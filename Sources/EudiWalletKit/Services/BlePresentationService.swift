@@ -22,8 +22,8 @@ import MdocDataTransfer18013
 
 /// Implementation is based on the ISO/IEC 18013-5 specification
 
-public final class BlePresentationService: @unchecked Sendable, PresentationService {
-	var bleServerTransfer: MdocGattServer
+public final class BlePresentationService: PresentationService {
+	let bleServerTransfer: MdocGattServer
 	public var status: TransferStatus = .initializing
 	var continuationRequest: CheckedContinuation<UserRequestInfo, Error>?
 	var handleSelected: ((Bool, RequestItems?) async -> Void)?
@@ -88,7 +88,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 extension BlePresentationService: MdocOfflineDelegate {
 	/// BLE transfer changed status
 	/// - Parameter newStatus: New status
-	public func didChangeStatus(_ newStatus: MdocDataTransfer18013.TransferStatus) {
+	public func didChangeStatus(_ newStatus: TransferStatus) {
 		status = if let st = TransferStatus(rawValue: newStatus.rawValue) { st } else { .error }
 		switch newStatus {
 		case .qrEngagementReady:
@@ -106,7 +106,7 @@ extension BlePresentationService: MdocOfflineDelegate {
 	/// - Parameters:
 	///   - request: Request information
 	///   - handleSelected: Callback function to call after user selection of items to send
-	public func didReceiveRequest(_ request: UserRequestInfo, handleSelected: @escaping (Bool, MdocDataTransfer18013.RequestItems?) async -> Void) {
+	public func didReceiveRequest(_ request: UserRequestInfo, handleSelected: @escaping  (Bool, RequestItems?) async -> Void) {
 		self.handleSelected = handleSelected
 		self.request = request
 		continuationRequest?.resume(returning: request)

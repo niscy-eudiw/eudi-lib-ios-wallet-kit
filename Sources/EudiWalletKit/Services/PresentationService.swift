@@ -23,7 +23,7 @@ public typealias RequestItems = MdocDataTransfer18013.RequestItems
 
 /// Presentation service abstract protocol
 
-public protocol PresentationService: Sendable {
+public protocol PresentationService {
 	/// Status of the data transfer
 	//var status: TransferStatus { get }
 	/// instance of a presentation ``FlowType``

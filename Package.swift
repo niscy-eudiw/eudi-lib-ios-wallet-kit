@@ -41,12 +41,9 @@ let package = Package(
 				.product(name: "Copyable", package: "SwiftCopyableMacro"),
 			],
 			swiftSettings: [
-        		.enableUpcomingFeature("DisableOutwardActorInference"),
-        		.enableUpcomingFeature("GlobalActorIsolatedTypesUsability"),
         		.enableUpcomingFeature("InferIsolatedConformances"),
-        		.enableUpcomingFeature("InferSendableFromCaptures"),
         		.enableUpcomingFeature("NonisolatedNonsendingByDefault")
-    	],
+    		],
 		),
 		.testTarget(
 			name: "EudiWalletKitTests",

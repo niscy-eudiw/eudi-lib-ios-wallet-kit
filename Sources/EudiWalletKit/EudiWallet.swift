@@ -34,7 +34,7 @@ import OpenID4VCI
 import eudi_lib_sdjwt_swift
 
 /// User wallet implementation
-public final class EudiWallet: ObservableObject, @unchecked Sendable {
+public final class EudiWallet: ObservableObject {
 	/// Storage manager instance
 	public private(set) var storage: StorageManager!
 	/// Wallet configuration

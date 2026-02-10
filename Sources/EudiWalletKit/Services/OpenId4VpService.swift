@@ -33,7 +33,7 @@ import enum OpenID4VP.ClaimPathElement
 /// Implements remote attestation presentation to online verifier
 
 /// Implementation is based on the OpenID4VP specification
-public final class OpenId4VpService: @unchecked Sendable, PresentationService {
+public final class OpenId4VpService: PresentationService {
 	public var status: TransferStatus = .initialized
 	var openid4VPlink: String
 	// map of document-id to data format

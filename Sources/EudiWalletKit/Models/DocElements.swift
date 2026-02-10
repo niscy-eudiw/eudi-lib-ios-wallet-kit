@@ -20,7 +20,7 @@ import MdocDataModel18013
 import MdocDataTransfer18013
 import eudi_lib_sdjwt_swift
 
-public struct DocPresentInfo: Sendable {
+public struct DocPresentInfo {
 	public let docType: String
 	public let secureAreaName: String?
 	public let docDataFormat: DocDataFormat
@@ -29,7 +29,7 @@ public struct DocPresentInfo: Sendable {
 	public let typedData: DocTypedData
 }
 
-public enum DocElements: Identifiable, Sendable {
+public enum DocElements: Identifiable {
 	case msoMdoc(MsoMdocElements)
 	case sdJwt(SdJwtElements)
 
@@ -81,7 +81,7 @@ public enum DocElements: Identifiable, Sendable {
 
 /// Element collection for mso-mdoc document
 /// Used for disclosure of mdoc elements
-public final class MsoMdocElements: Identifiable, @unchecked Sendable {
+public final class MsoMdocElements: Identifiable {
 	public init(docId: String, docType: String, displayName: String? = nil, isValid: Bool = true, nameSpacedElements: [NameSpacedElements]) {
 		self.docId = docId
 		self.docType = docType
@@ -107,7 +107,7 @@ public final class MsoMdocElements: Identifiable, @unchecked Sendable {
 	}
 }
 
-public final class SdJwtElements: Identifiable, @unchecked Sendable {
+public final class SdJwtElements: Identifiable {
 	public init(docId: String, vct: String, displayName: String? = nil, isValid: Bool = true, sdJwtElements: [SdJwtElement]) {
 		self.docId = docId
 		self.vct = vct
@@ -232,7 +232,7 @@ extension ClaimPath {
  	public func contains2(_ that: ClaimPath) -> Bool { zip(self.value, that.value).allSatisfy { (selfElement, thatElement) in selfElement.contains(thatElement) } }
 }
 
-public final class NameSpacedElements: Identifiable, @unchecked Sendable {
+public final class NameSpacedElements: Identifiable {
 	public init(nameSpace: String, elements: [MsoMdocElement]) {
 		self.nameSpace = nameSpace
 		self.elements = elements
@@ -242,7 +242,7 @@ public final class NameSpacedElements: Identifiable, @unchecked Sendable {
 	public var elements: [MsoMdocElement]
 }
 
-public final class MsoMdocElement: Identifiable, ObservableObject, @unchecked Sendable {
+public final class MsoMdocElement: Identifiable, ObservableObject {
 	public init(elementIdentifier: String, isOptional: Bool, intentToRetain: Bool = false, stringValue: String?, docClaim: DocClaim?, isValid: Bool, isSelected: Bool = true) {
 		self.elementIdentifier = elementIdentifier
 		self.isOptional = isOptional
@@ -269,7 +269,7 @@ public final class MsoMdocElement: Identifiable, ObservableObject, @unchecked Se
 	}
 }
 
-public final class SdJwtElement: Identifiable, ObservableObject, @unchecked Sendable, Hashable {
+public final class SdJwtElement: Identifiable, ObservableObject, Hashable {
 	public init(elementPath: [String], isOptional: Bool, intentToRetain: Bool = false, stringValue: String?, docClaim: DocClaim?, isValid: Bool, isSelected: Bool = true, nestedElements: [SdJwtElement]? = nil) {
 		self.elementPath = elementPath
 		self.isOptional = isOptional

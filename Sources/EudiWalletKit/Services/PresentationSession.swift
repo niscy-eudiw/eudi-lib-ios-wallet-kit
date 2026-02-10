@@ -25,7 +25,7 @@ import LocalAuthentication
 /// Presentation session
 ///
 /// This class wraps the ``PresentationService`` instance, providing bindable fields to a SwifUI view
-public final class PresentationSession: @unchecked Sendable, ObservableObject {
+public final class PresentationSession: ObservableObject {
 	public var presentationService: any PresentationService
 	var storageManager: StorageManager!
 	var storageService: (any DataStorageService)!
@@ -120,17 +120,14 @@ public final class PresentationSession: @unchecked Sendable, ObservableObject {
 	/// On success ``deviceEngagement`` published variable will be set with the result and ``status`` will be ``.qrEngagementReady``
 	/// On error ``uiError`` will be filled and ``status`` will be ``.error``
 	public func startQrEngagement() async throws {
-		if docIdToPresentInfo.count == 0 { await setError(Self.NotAvailableStr, localizationKey: "request_data_no_document"); return }
+		if docIdToPresentInfo.count == 0 { setError(Self.NotAvailableStr, localizationKey: "request_data_no_document"); return }
 		do {
 			let data = try await presentationService.startQrEngagement(secureAreaName: nil, crv: .P256)
-			await MainActor.run {
-				deviceEngagement = data
-				status = .qrEngagementReady
-			}
-		} catch { await setError(error.localizedDescription) }
+			deviceEngagement = data
+			status = .qrEngagementReady
+		} catch { setError(error.localizedDescription) }
 	}
 
-	@MainActor
 	func setError(_ description: String, localizationKey: String? = nil) {
 		status = .error
 		uiError = WalletError(description: description, localizationKey: localizationKey)
