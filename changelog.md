@@ -1,3 +1,13 @@
+## v0.20.1
+
+### Breaking change
+
+`authFlowRedirectionURI` parameter added to `resolveOfferUrlDocTypes` method of `EudiWallet`
+
+``` swift
+public func resolveOfferUrlDocTypes(offerUri: String, authFlowRedirectionURI: URL?) 
+```
+
 ## v0.20.0
 
 ### Dependency Update
