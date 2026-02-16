@@ -241,7 +241,7 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 	/// - Parameters:
 	///   - uriOffer: url with offer
 	/// - Returns: Offered issue information model
-	public func resolveOfferUrlDocTypes(offerUri: String) async throws -> OfferedIssuanceModel {
+	public func resolveOfferUrlDocTypes(offerUri: String, authFlowRedirectionURI: URL?) async throws -> OfferedIssuanceModel {
 		let result = await CredentialOfferRequestResolver(fetcher: Fetcher<CredentialOfferRequestObject>(session: networkingVci), credentialIssuerMetadataResolver: OpenId4VCIService.makeMetadataResolver(networkingVci), authorizationServerMetadataResolver: AuthorizationServerMetadataResolver(oidcFetcher: Fetcher<OIDCProviderMetadata>(session: networkingVci), oauthFetcher: Fetcher<AuthorizationServerMetadata>(session: networkingVci))).resolve(source: try .init(urlString: offerUri), policy: .ignoreSigned)
 		switch result {
 		case .success(let offer):
@@ -253,7 +253,7 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 				let fallbackService = OpenId4VCIServiceRegistry.shared.getAllServices().first
 				let config: OpenId4VciConfiguration
 				if let fallbackService {
-					config = await fallbackService.config.copy(credentialIssuerURL: issuerURL)
+					config = await fallbackService.config.copy(credentialIssuerURL: issuerURL).copy(authFlowRedirectionURI: authFlowRedirectionURI ?? config.authFlowRedirectionURI)
 				} else {
 					config = OpenId4VciConfiguration(credentialIssuerURL: issuerURL)
 				}
