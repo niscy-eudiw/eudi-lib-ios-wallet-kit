@@ -249,7 +249,15 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 			let credentialIssuerIdentifier = try CredentialIssuerId(urlString)
 			var vciService = await OpenId4VCIServiceRegistry.shared.getByIssuerURL(issuerURL: credentialIssuerIdentifier.url.absoluteString)
 			if vciService == nil {
-				vciService = try registerOpenId4VciService(name: urlString, config: OpenId4VciConfiguration(credentialIssuerURL: credentialIssuerIdentifier.url.absoluteString))
+				let issuerURL = credentialIssuerIdentifier.url.absoluteString
+				let fallbackService = OpenId4VCIServiceRegistry.shared.getAllServices().first
+				let config: OpenId4VciConfiguration
+				if let fallbackService {
+					config = await fallbackService.config.copy(credentialIssuerURL: issuerURL)
+				} else {
+					config = OpenId4VciConfiguration(credentialIssuerURL: issuerURL)
+				}
+				vciService = try registerOpenId4VciService(name: urlString, config: config)
 			}
 			return try await vciService!.resolveOfferUrlDocTypes(offerUri: offerUri)
 		case .failure(let error):
