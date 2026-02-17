@@ -251,9 +251,10 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 			if vciService == nil {
 				let issuerURL = credentialIssuerIdentifier.url.absoluteString
 				let fallbackService = OpenId4VCIServiceRegistry.shared.getAllServices().first
-				let config: OpenId4VciConfiguration
+				var config: OpenId4VciConfiguration
 				if let fallbackService {
-					config = await fallbackService.config.copy(credentialIssuerURL: issuerURL).copy(authFlowRedirectionURI: authFlowRedirectionURI ?? fallbackService.config.authFlowRedirectionURI)
+					config = await fallbackService.config.copy(credentialIssuerURL: issuerURL)
+					if let authFlowRedirectionURI { config = config.copy(authFlowRedirectionURI: authFlowRedirectionURI) }
 				} else {
 					config = OpenId4VciConfiguration(credentialIssuerURL: issuerURL)
 				}
