@@ -1,3 +1,18 @@
+## v0.20.4
+
+Fixed bug when more than one identical attestation is successfully presented to the verifier. Previously, only a single entry per "type" appears in the Transactions tab.
+For example, the screenshots show 2 mDL and 3 PID attestations, all successfully presented, but only 1 of each is listed in the Transactions.
+
+## v0.20.3
+
+* Enhance OpenID4VCI service registration with fallback to the first available configuration by @phisakel in https://github.com/eu-digital-identity-wallet/eudi-lib-ios-wallet-kit/pull/288
+
+When the issuer doesn't match any pre-configured service, fall back to the first available service's configuration (inheriting client auth, attestation config, etc.) with the issuer URL overridden. This mirrors the Android wallet behavior where the fallback manager strategy carries over to unknown issuers.
+
+## v0.20.2
+
+-  Wallet storage document deletion **bug fix**
+
 ## v0.20.1
 
 ### Breaking change
