@@ -28,8 +28,7 @@ let package = Package(
 		.target(
 			name: "EudiWalletKit",
 			dependencies: [
-		                .product(name: "MdocDataModel18013", package: "eudi-lib-ios-iso18013-data-model"),
-		.product(name: "MdocDataTransfer18013", package: "eudi-lib-ios-iso18013-data-transfer"),
+				.product(name: "MdocDataTransfer18013", package: "eudi-lib-ios-iso18013-data-transfer"),
 				.product(name: "WalletStorage", package: "eudi-lib-ios-wallet-storage"),
 				.product(name: "OpenID4VP", package: "eudi-lib-ios-openid4vp-swift"),
 				.product(name: "OpenID4VCI", package: "eudi-lib-ios-openid4vci-swift"),
