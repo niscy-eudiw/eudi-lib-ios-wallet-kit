@@ -277,11 +277,11 @@ extension JSON {
 			let stringValue = self[Keys.sdAlg.rawValue].stringValue
 			let algorithIdentifier = HashingAlgorithmIdentifier.allCases.first(where: {$0.rawValue == stringValue})
 			guard let algorithIdentifier else {
-				throw SDJWTVerifierError.missingOrUnknownHashingAlgorithm
+				return "sha-256"
 			}
 			return algorithIdentifier.rawValue
 		} else {
-			throw SDJWTVerifierError.missingOrUnknownHashingAlgorithm
+			return "sha-256"
 		}
 	}
 }
