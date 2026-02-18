@@ -106,7 +106,7 @@ extension BlePresentationService: MdocOfflineDelegate {
 	/// - Parameters:
 	///   - request: Request information
 	///   - handleSelected: Callback function to call after user selection of items to send
-	public func didReceiveRequest(_ request: UserRequestInfo, handleSelected: nonisolated(nonsending)  @escaping (Bool, MdocDataTransfer18013.RequestItems?) async -> Void) {
+	public func didReceiveRequest(_ request: UserRequestInfo, handleSelected: @escaping (Bool, MdocDataTransfer18013.RequestItems?) async -> Void) {
 		self.handleSelected = handleSelected
 		self.request = request
 		continuationRequest?.resume(returning: request)

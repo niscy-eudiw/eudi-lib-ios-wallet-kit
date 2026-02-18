@@ -38,11 +38,7 @@ let package = Package(
 				.product(name: "FileLogging", package: "swift-log-file"),
 				.product(name: "StatiumSwift", package: "eudi-lib-ios-statium-swift"),
 				.product(name: "Copyable", package: "SwiftCopyableMacro"),
-			],
-			swiftSettings: [
-				.enableUpcomingFeature("InferIsolatedConformances"),
-				.enableUpcomingFeature("NonisolatedNonsendingByDefault")
-			],
+			]
 		),
 		.testTarget(
 			name: "EudiWalletKitTests",
