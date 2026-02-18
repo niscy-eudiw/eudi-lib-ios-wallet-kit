@@ -241,7 +241,7 @@ public final class EudiWallet: ObservableObject {
 	/// - Parameters:
 	///   - uriOffer: url with offer
 	/// - Returns: Offered issue information model
-	public func resolveOfferUrlDocTypes(offerUri: String) async throws -> OfferedIssuanceModel {
+	public func resolveOfferUrlDocTypes(offerUri: String, authFlowRedirectionURI: URL?) async throws -> OfferedIssuanceModel {
 		let result = await CredentialOfferRequestResolver(fetcher: Fetcher<CredentialOfferRequestObject>(session: networkingVci), credentialIssuerMetadataResolver: OpenId4VCIService.makeMetadataResolver(networkingVci), authorizationServerMetadataResolver: AuthorizationServerMetadataResolver(oidcFetcher: Fetcher<OIDCProviderMetadata>(session: networkingVci), oauthFetcher: Fetcher<AuthorizationServerMetadata>(session: networkingVci))).resolve(source: try .init(urlString: offerUri), policy: .ignoreSigned)
 		switch result {
 		case .success(let offer):
@@ -249,7 +249,16 @@ public final class EudiWallet: ObservableObject {
 			let credentialIssuerIdentifier = try CredentialIssuerId(urlString)
 			var vciService = await OpenId4VCIServiceRegistry.shared.getByIssuerURL(issuerURL: credentialIssuerIdentifier.url.absoluteString)
 			if vciService == nil {
-				vciService = try registerOpenId4VciService(name: urlString, config: OpenId4VciConfiguration(credentialIssuerURL: credentialIssuerIdentifier.url.absoluteString))
+				let issuerURL = credentialIssuerIdentifier.url.absoluteString
+				let fallbackService = OpenId4VCIServiceRegistry.shared.getAllServices().first
+				var config: OpenId4VciConfiguration
+				if let fallbackService {
+					config = await fallbackService.config.copy(credentialIssuerURL: issuerURL)
+					if let authFlowRedirectionURI { config = config.copy(authFlowRedirectionURI: authFlowRedirectionURI) }
+				} else {
+					config = OpenId4VciConfiguration(credentialIssuerURL: issuerURL)
+				}
+				vciService = try registerOpenId4VciService(name: urlString, config: config)
 			}
 			return try await vciService!.resolveOfferUrlDocTypes(offerUri: offerUri)
 		case .failure(let error):
@@ -550,3 +559,4 @@ public final class EudiWallet: ObservableObject {
 		return nil
 	}
 }
+
