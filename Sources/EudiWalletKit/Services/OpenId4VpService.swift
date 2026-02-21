@@ -75,6 +75,7 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 	var mdocGeneratedNonce: String!
 	var sessionTranscript: SessionTranscript!
 	var eReaderPub: CoseKey?
+	var zkSystemSpecs: [ZkSystemSpec]?
 	var networking: Networking
 	var unlockData: [String: Data]!
 	public var transactionLog: TransactionLog
