@@ -1,5 +1,5 @@
 {
-  "originHash" : "6d43f2c10185a2af1464bfc84482426a5d7c857d79ad769f824478ff77d148a5",
+  "originHash" : "cdd31bdcce32b9d5468267f1c1fd5ebd14ffd7c4e7a883a4838e46aecdf6de6a",
   "pins" : [
     {
       "identity" : "blueecc",
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/eu-digital-identity-wallet/eudi-lib-ios-iso18013-data-transfer.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "1edd207667a3a6e0df59868fed059647c089332d"
+        "revision" : "1edd207667a3a6e0df59868fed059647c089332d",
+        "version" : "0.8.5"
       }
     },
     {
