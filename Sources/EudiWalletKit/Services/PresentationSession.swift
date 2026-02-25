@@ -21,7 +21,7 @@ import MdocDataModel18013
 import MdocDataTransfer18013
 import WalletStorage
 import LocalAuthentication
-
+import struct WalletStorage.Document
 /// Presentation session
 ///
 /// This class wraps the ``PresentationService`` instance, providing bindable fields to a SwifUI view
@@ -46,15 +46,15 @@ public final class PresentationSession: @unchecked Sendable, ObservableObject {
 	/// Device engagement data (QR data for the BLE flow)
 	@Published public var deviceEngagement: String?
 	// map of document id to (doc type, format, display name) pairs
-	public var docIdToPresentInfo: [String: DocPresentInfo]!
+	public var docIdToPresentInfo: [Document.ID: DocPresentInfo]!
 	// map of document id to key index to use
-	public var documentKeyIndexes: [String: Int]!
+	public var documentKeyIndexes: [Document.ID: Int]!
 	/// User authentication required
 	var userAuthenticationRequired: Bool
 	/// transaction logger
 	public var transactionLogger: (any TransactionLogger)?
 
-	public init(presentationService: any PresentationService, storageManager: StorageManager? = nil, storageService: (any DataStorageService)? = nil, docIdToPresentInfo: [String: DocPresentInfo], documentKeyIndexes: [String: Int], userAuthenticationRequired: Bool, transactionLogger: (any TransactionLogger)? = nil) {
+	public init(presentationService: any PresentationService, storageManager: StorageManager? = nil, storageService: (any DataStorageService)? = nil, docIdToPresentInfo: [Document.ID: DocPresentInfo], documentKeyIndexes: [Document.ID: Int], userAuthenticationRequired: Bool, transactionLogger: (any TransactionLogger)? = nil) {
 		self.presentationService = presentationService
 		self.storageManager = storageManager
 		self.storageService = storageService
