@@ -48,7 +48,7 @@ public final class PresentationSession: @unchecked Sendable, ObservableObject {
 	// map of document id to (doc type, format, display name) pairs
 	public var docIdToPresentInfo: [Document.ID: DocPresentInfo]!
 	// map of document id to key index to use
-	public var documentKeyIndexes: [Document.ID: Int]!
+	public var documentKeyIndexes: [Document.ID: Int]
 	/// User authentication required
 	var userAuthenticationRequired: Bool
 	/// transaction logger
@@ -153,8 +153,9 @@ public final class PresentationSession: @unchecked Sendable, ObservableObject {
 		}
 	}
 
-	func updateKeyBatchInfoAndDeleteCredentialIfNeeded(presentedIds: [String]) async throws {
+	func updateKeyBatchInfoAndDeleteCredentialIfNeeded(presentedIds: [Document.ID], zkpDocumentIds: [Document.ID]?) async throws {
 		for (id, dpi) in docIdToPresentInfo where presentedIds.contains(id) {
+			if let zkpDocumentIds, zkpDocumentIds.contains(id) { continue }
 			let secureArea = SecureAreaRegistry.shared.get(name: dpi.secureAreaName)
 			guard let keyIndex = documentKeyIndexes[id] else { continue }
 			let newKeyBatchInfo = try await secureArea.updateKeyBatchInfo(id: id, keyIndex: keyIndex)
@@ -179,7 +180,7 @@ public final class PresentationSession: @unchecked Sendable, ObservableObject {
 			let action = { [ weak self] in _ = try await self?.presentationService.sendResponse(userAccepted: userAccepted, itemsToSend: itemsToSend, onSuccess: onSuccess) }
 			try await EudiWallet.authorizedAction(action: action, disabled: !userAuthenticationRequired, dismiss: { onCancel?() }, localizedReason: NSLocalizedString("authenticate_to_share_data", comment: "") )
 			await MainActor.run { status = .responseSent }
-			try await updateKeyBatchInfoAndDeleteCredentialIfNeeded(presentedIds: Array(itemsToSend.keys))
+			try await updateKeyBatchInfoAndDeleteCredentialIfNeeded(presentedIds: Array(itemsToSend.keys), zkpDocumentIds: presentationService.zkpDocumentIds)
 			if let transactionLogger { do { try await transactionLogger.log(transaction: presentationService.transactionLog) } catch { logger.error("Failed to log transaction: \(error)") } }
 		} catch {
 			await setError(error.localizedDescription)

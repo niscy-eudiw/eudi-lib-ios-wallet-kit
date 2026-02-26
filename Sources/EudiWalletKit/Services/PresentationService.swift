@@ -17,6 +17,7 @@ limitations under the License.
 import Foundation
 import MdocDataModel18013
 import MdocDataTransfer18013
+import struct WalletStorage.Document
 
 /// [Doc Types to [Namespace to Items]] dictionary
 public typealias RequestItems = MdocDataTransfer18013.RequestItems
@@ -34,6 +35,8 @@ public protocol PresentationService: Sendable {
 	func receiveRequest() async throws -> UserRequestInfo
 
 	var transactionLog: TransactionLog { get }
+	
+	var  zkpDocumentIds: [Document.ID]? { get }
 
 	/// Send response to verifier
 	/// - Parameters:

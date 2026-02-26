@@ -35,7 +35,7 @@ import struct WalletStorage.Document
 
 /// Implementation is based on the OpenID4VP specification
 public final class OpenId4VpService: @unchecked Sendable, PresentationService {
-	public var status: TransferStatus = .initialized
+ 	public var status: TransferStatus = .initialized
 	var openid4VPlink: String
 	let transferInfo: InitializeTransferInfo
 	// map of document-id to IssuerSigned
@@ -67,6 +67,7 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 	var networking: Networking
 	var unlockData: [String: Data]!
 	public var transactionLog: TransactionLog
+	public var zkpDocumentIds: [WalletStorage.Document.ID]?
 	public var flow: FlowType
 
 	public init(parameters: InitializeTransferData, qrCode: Data, openID4VpConfig: OpenId4VpConfiguration, networking: Networking) throws {
@@ -168,12 +169,12 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 		docsCbor = transferInfo.documentObjects.filter { k,v in Self.filterFormat(transferInfo.dataFormats[k]!, fmt: .cbor)} .mapValues { try? IssuerSigned(data: $0.bytes) }.compactMapValues { $0 }
 	}
 
-	func generateCborVpToken(itemsToSend: RequestItems) async throws -> (VerifiablePresentation, Data, [Data?]) {
+	func generateCborVpToken(itemsToSend: RequestItems) async throws -> (VerifiablePresentation, Data, [Data?], [String]) {
 		let resp = try await MdocHelpers.getDeviceResponseToSend(deviceRequest: nil, issuerSigned: docsCbor, docMetadata: transferInfo.docMetadata, selectedItems: itemsToSend, eReaderKey: eReaderPub, privateKeyObjects: transferInfo.privateKeyObjects, sessionTranscript: sessionTranscript, dauthMethod: .deviceSignature, unlockData: unlockData, zkSpecsRequested: zkSpecsRequested)
 		guard let resp else { throw PresentationSession.makeError(str: "DOCUMENT_ERROR") }
 		let vpTokenData = Data(resp.deviceResponse.toCBOR(options: CBOROptions()).encode())
 		let vpTokenStr = vpTokenData.base64URLEncodedString()
-		return (VerifiablePresentation.generic(vpTokenStr), vpTokenData, resp.responseMetadata)
+		return (VerifiablePresentation.generic(vpTokenStr), vpTokenData, resp.responseMetadata, resp.zkpDocumentIds)
 	}
 
 	func decodeDocuments() {
@@ -232,6 +233,7 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 			try await SendVpTokens(nil, dcql, resolved, onSuccess)
 			return
 		}
+		zkpDocumentIds = [String]()
 		logger.info("Openid4vp request items: \(itemsToSend.mapValues { $0.mapValues { ar in ar.map(\.elementIdentifier) } })")
 		if unlockData == nil { _ = try await startQrEngagement(secureAreaName: nil, crv: .P256) }
 		// tuples of inputDescriptor-id, docId and verifiable presentation
@@ -244,6 +246,7 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 				if docsCbor == nil { makeCborDocs() }
 				let itemsToSend1 = Dictionary(uniqueKeysWithValues: [(docId, nsItems)])
 				let vpToken = try await generateCborVpToken(itemsToSend: itemsToSend1)
+				zkpDocumentIds!.append(contentsOf: vpToken.3)
 				inputToPresentations.append((inputDescrId, docId, vpToken.0))
 			} else if transferInfo.dataFormats[docId] == .sdjwt {
 				let docSigned = docsSdJwt[docId]; let dpk = transferInfo.privateKeyObjects[docId]

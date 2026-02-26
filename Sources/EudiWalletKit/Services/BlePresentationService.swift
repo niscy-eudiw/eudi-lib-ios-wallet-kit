@@ -17,6 +17,7 @@ limitations under the License.
 import Foundation
 import MdocDataModel18013
 import MdocDataTransfer18013
+import struct WalletStorage.Document
 
 /// Implements proximity attestation presentation with QR to BLE data transfer
 
@@ -30,6 +31,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 	var deviceEngagement: String?
 	var request: UserRequestInfo?
 	public var transactionLog: TransactionLog
+	public var zkpDocumentIds: [Document.ID]?
 	public var flow: FlowType { .ble }
 
 	public init(parameters: InitializeTransferData) throws {
@@ -79,6 +81,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 	///   - itemsToSend: The selected items to send organized in document types and namespaces
 	public func sendResponse(userAccepted: Bool, itemsToSend: RequestItems, onSuccess: (@Sendable (URL?) -> Void)?) async throws  {
 		await handleSelected?(userAccepted, itemsToSend)
+		zkpDocumentIds = bleServerTransfer.zkpDocumentIds
 		handleSelected = nil
 		TransactionLogUtils.setCborTransactionLogResponseInfo(bleServerTransfer, transactionLog: &transactionLog)
 	}
