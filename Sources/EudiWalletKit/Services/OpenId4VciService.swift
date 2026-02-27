@@ -760,7 +760,11 @@ public actor OpenId4VCIService {
 	}
 
 	func hasIssuerUrl(_ issuerURL: String) -> Bool {
-		return config.credentialIssuerURL == issuerURL
+		guard let configURL = config.credentialIssuerURL else { return false }
+		// Normalize by removing trailing slashes for comparison
+		let normalizedConfig = configURL.hasSuffix("/") ? String(configURL.dropLast()) : configURL
+		let normalizedInput = issuerURL.hasSuffix("/") ? String(issuerURL.dropLast()) : issuerURL
+		return normalizedConfig == normalizedInput
 	}
 
 } // end of OpenId4VCIService
