@@ -51,5 +51,7 @@ public final class FaultPresentationService: @unchecked Sendable, PresentationSe
 		throw error
 	}
 
-
+	public func waitForDisconnect() async throws {
+		throw error
+	}
 }

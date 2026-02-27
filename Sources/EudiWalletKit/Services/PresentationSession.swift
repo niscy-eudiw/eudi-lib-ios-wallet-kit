@@ -189,6 +189,23 @@ public final class PresentationSession: @unchecked Sendable, ObservableObject {
 		}
 	}
 
+	/// Wait for disconnect
+	
+	/// If current status is not `responseSent` this method will return immediately, otherwise it will wait for disconnection and set status to `disconnected`
+	public func waitForDisconnect() async {
+		logger.info("Wait for disconnect, current status: \(status)")
+		if status != .responseSent {
+			logger.warning("This method should be called after response has been sent")
+			return
+		}
+		do {
+			try await presentationService.waitForDisconnect()
+			await MainActor.run { status = .disconnected }
+		} catch {
+			await setError(error.localizedDescription)
+		}
+		
+	}
 
 
 }

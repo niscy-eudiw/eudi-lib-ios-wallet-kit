@@ -266,6 +266,11 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 		try await SendVpTokens(inputToPresentations, dcql, resolved, onSuccess)
 
 	}
+	
+	public func waitForDisconnect() async throws {
+		status = .disconnected
+	}
+	
 	/// Filter document accordind to the raw format value
 	static func filterFormat(_ df: DocDataFormat, fmt: DocDataFormat) -> Bool { df == fmt }
 
