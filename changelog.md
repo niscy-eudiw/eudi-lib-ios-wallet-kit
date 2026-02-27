@@ -1,3 +1,24 @@
+## v0.21.0
+
+### ZKP (Zero-Knowledge Proof) Support
+* Extract ZKP specs from DCQL request. Refactor document handling in OpenId4VP and related services to use `Document.ID` for improved type safety and clarity
+* Track ZKP document IDs through presentation flow. Skip deleting credentials used as ZKP documents
+  - Introduce `zkpDocumentIds` property on `PresentationService` and concrete services (`BlePresentationService`, `FaultPresentationService`, `OpenId4VpService`)
+  - `generateCborVpToken` now returns ZKP document IDs; `OpenId4VpService` aggregates them
+  - `PresentationSession.updateKeyBatchInfoAndDeleteCredentialIfNeeded` now accepts `Document.ID`s and an optional `zkpDocumentIds` list
+
+### Improvements
+* Implement `waitForDisconnect` method in `PresentationSession` for improved disconnection handling
+
+### Dependency Update
+* Updated package dependencies to version 0.10.0
+
+## v0.20.5
+* Fixed bug in https://github.com/eu-digital-identity-wallet/eudi-lib-ios-wallet-kit/pull/291 when more than one identical attestation is successfully presented to the verifier. Previously, only a single entry per "type" appears in the Transactions tab.
+For example, the screenshots show 2 mDL and 3 PID attestations, all successfully presented, but only 1 of each is listed in the Transactions.
+
+* Fallback to sha-256 hashing algorithm if sd-alg does not exist by @dtsiflit in https://github.com/eu-digital-identity-wallet/eudi-lib-ios-wallet-kit/pull/293
+
 ## v0.20.4
 
 Fixed bug when more than one identical attestation is successfully presented to the verifier. Previously, only a single entry per "type" appears in the Transactions tab.
