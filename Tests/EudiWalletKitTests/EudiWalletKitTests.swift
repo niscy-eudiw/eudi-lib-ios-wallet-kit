@@ -35,7 +35,7 @@ struct EudiWalletKitTests {
 		if format == .cbor { return } // skip cbor sample due to legacy schema differences
 		let testDcqlData = Data(name: "dcql-\(format.rawValue)", ext: "json", from: Bundle.module)!
 		let testDcql = try JSONDecoder().decode(DCQL.self, from: testDcqlData)
-		let (fmtsRequested, _) = try OpenId4VpUtils.parseDcqlFormats(testDcql,  idsToDocTypes: ["1": "urn:eu.europa.ec.eudi:pid:1"])
+		let (fmtsRequested, _, _) = try OpenId4VpUtils.parseDcqlFormats(testDcql,  idsToDocTypes: ["1": "urn:eu.europa.ec.eudi:pid:1"])
 		#expect(fmtsRequested.allSatisfy({ (k,v) in v == format }))
 	}
 
