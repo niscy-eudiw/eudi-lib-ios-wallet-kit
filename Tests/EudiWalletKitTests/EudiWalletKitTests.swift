@@ -24,6 +24,7 @@ import MdocSecurity18013
 import SwiftCBOR
 @testable import JOSESwift
 import eudi_lib_sdjwt_swift
+import SwiftyJSON
 import OpenID4VP
 import enum OpenID4VP.ClaimPathElement
 import struct OpenID4VP.ClaimPath
@@ -106,6 +107,48 @@ struct EudiWalletKitTests {
 		#expect(reconstructedHttpWithPort == "http://localhost:3000")
 	}
 
+	@Test("Sex field displays male/female for both number and string JSON types")
+	func testSexFieldConversion() throws {
+		// When sex is a JSON number
+		let jsonNumber = JSON(parseJSON: """
+		{ "sex": 1 }
+		""")
+		let claimMetadata: [DocClaimMetadata]? = nil
+		let uiCulture: String? = nil
+		let numberClaims = jsonNumber.toClaimsArray(pathPrefix: [], claimMetadata, uiCulture)?.0
+		let numberSex = numberClaims?.first(where: { $0.name == "sex" })
+		#expect(numberSex != nil)
+		#expect(numberSex?.stringValue == "1") // raw value preserved
+		if case .string(let display) = numberSex?.dataValue {
+			#expect(display == "male")
+		} else {
+			Issue.record("Expected .string data value for sex number claim")
+		}
+		// When sex is a JSON string (Python issuer encodes as string)
+		let jsonString = JSON(parseJSON: """
+		{ "sex": "1" }
+		""")
+		let stringClaims = jsonString.toClaimsArray(pathPrefix: [], claimMetadata, uiCulture)?.0
+		let stringSex = stringClaims?.first(where: { $0.name == "sex" })
+		#expect(stringSex != nil)
+		#expect(stringSex?.stringValue == "1")
+		if case .string(let display) = stringSex?.dataValue {
+			#expect(display == "male")
+		} else {
+			Issue.record("Expected .string data value for sex string claim")
+		}
+		// Female value
+		let jsonFemale = JSON(parseJSON: """
+		{ "sex": "2" }
+		""")
+		let femaleClaims = jsonFemale.toClaimsArray(pathPrefix: [], claimMetadata, uiCulture)?.0
+		let femaleSex = femaleClaims?.first(where: { $0.name == "sex" })
+		if case .string(let display) = femaleSex?.dataValue {
+			#expect(display == "female")
+		} else {
+			Issue.record("Expected .string data value for female sex claim")
+		}
+	}
 }
 
 // MARK: - Data Extension for Test Resources

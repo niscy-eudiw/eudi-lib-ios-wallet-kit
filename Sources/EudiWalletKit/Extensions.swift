@@ -224,6 +224,7 @@ extension JSON {
 			return (.integer(UInt64(intValue)), stringValue)
 		case .string:
 			if name == "portrait" || name == "signature_usual_mark", let d = Data(base64urlEncoded: stringValue) { return (.bytes(d.bytes), "\(d.count) bytes") }
+			if name == "sex", let isex = Int(stringValue), isex >= 0, isex <= 2 { return (.string(NSLocalizedString(isex == 1 ? "male" : "female", comment: "")), stringValue) }
 			return (.string(stringValue), stringValue)
 		case .bool: return (.boolean(boolValue), boolValue ? "Y" : "N")
 		case .array: return (.array, stringValue)
