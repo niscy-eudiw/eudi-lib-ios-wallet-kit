@@ -393,9 +393,11 @@ let defaultOptions = try await wallet.getDefaultCredentialOptions(
 ```
 ### Resolving Credential offer
 
-The library provides the `resolveOfferUrlDocTypes(offerUri:authFlowRedirectionURI:issuerMetadataPolicy:)` method that resolves the credential offer URI.
+The library provides the `resolveOfferUrlDocTypes(offerUri:authFlowRedirectionURI:)` method that resolves the credential offer URI.
 The method returns the resolved `OfferedIssuanceModel` object that contains the offer's data (offered document types, issuer name and transaction code specification for pre-authorized flow). The offer's data can be displayed to the
 user.
+
+When a pre-registered issuer can be resolved from `offerUri`, the method uses that issuer's `OpenId4VciConfiguration.issuerMetadataPolicy`.
 
 The following example shows how to resolve a credential offer:
 
@@ -403,8 +405,7 @@ The following example shows how to resolve a credential offer:
  func resolveOfferUrlDocTypes(offerUri: String, authFlowRedirectionURI: URL?) async throws -> OfferedIssuanceModel {
     return try await wallet.resolveOfferUrlDocTypes(
       offerUri: offerUri,
-      authFlowRedirectionURI: authFlowRedirectionURI,
-      issuerMetadataPolicy: .requireSigned
+      authFlowRedirectionURI: authFlowRedirectionURI
     )
   }
 ```
