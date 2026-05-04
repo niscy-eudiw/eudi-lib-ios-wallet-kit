@@ -436,7 +436,42 @@ let newDocs = try await wallet.issueDocumentsByOfferUrl(
 )
 ```
 
+#### Configuring Issuer Metadata Policy with Certificate Chain Trust
 
+When you need strict validation of issuer metadata signatures using certificate chains (such as IACA root certificates), you can configure the issuer's `OpenId4VciConfiguration` with a signed metadata policy and certificate chain trust validator:
+
+```swift
+// Create a certificate chain trust validator with IACA root certificates
+let trust: CertificateChainTrust = TrustedChainValidator(iacaRoots: [eudic])
+
+// Create an issuer metadata policy that requires signed metadata
+let issuerMetadataPolicy: IssuerMetadataPolicy = .requireSigned(
+  issuerTrust: .byCertificateChain(certificateChainTrust: trust)
+)
+
+// Configure the issuer with the strict signed metadata policy
+let config = OpenId4VciConfiguration(
+  credentialIssuerURL: "https://issuer.example.com",
+  clientId: "my-wallet",
+  issuerMetadataPolicy: issuerMetadataPolicy
+)
+
+// Use this configuration when initializing the wallet
+let walletConfig = EudiWalletConfiguration(
+  trustedReaderCertificates: [Data(name: "eudi_pid_issuer_ut", ext: "der")!]
+)
+let wallet = try EudiWallet(
+  eudiWalletConfig: walletConfig,
+  openID4VciConfigurations: ["trusted_issuer": config]
+)
+```
+
+The `IssuerMetadataPolicy` enum provides three validation strategies:
+- `.ignoreSigned`: Accept issuer metadata regardless of signature status (default)
+- `.preferSigned(issuerTrust:)`: Prefer signed metadata if available, fall back to unsigned
+- `.requireSigned(issuerTrust:)`: Strictly require signed metadata, reject unsigned metadata
+
+When using `.requireSigned`, the issuer's metadata signature must be valid against one of the IACA root certificates provided to the trust validator.
 
 ### Authorization code flow
 

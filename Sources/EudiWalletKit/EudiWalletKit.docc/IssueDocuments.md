@@ -120,6 +120,23 @@ The `txCodeValue` parameter is not used in the case of the authorization code fl
 The following example shows how to issue documents by offer URL:
 
 ```swift
+// Configure issuer with signed metadata policy and certificate chain trust
+let trust: CertificateChainTrust = TrustedChainValidator(iacaRoots: [eudic])
+let issuerMetadataPolicy: IssuerMetadataPolicy = .requireSigned(
+  issuerTrust: .byCertificateChain(certificateChainTrust: trust)
+)
+
+let config = OpenId4VciConfiguration(
+  credentialIssuerURL: "https://issuer.example.com",
+  clientId: "my-wallet",
+  issuerMetadataPolicy: issuerMetadataPolicy
+)
+
+let wallet = try EudiWallet(
+  eudiWalletConfig: EudiWalletConfiguration(trustedReaderCertificates: []),
+  openID4VciConfigurations: ["trusted_issuer": config]
+)
+
 // Resolve the offer to get document models with recommended credential options
 let offer = try await wallet.resolveOfferUrlDocTypes(offerUri: offerUrl, authFlowRedirectionURI: nil)
 
