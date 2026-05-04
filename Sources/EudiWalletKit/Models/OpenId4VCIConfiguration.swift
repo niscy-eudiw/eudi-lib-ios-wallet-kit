@@ -40,7 +40,11 @@ public struct OpenId4VciConfiguration: Sendable {
 	public let requirePAR: Bool
 	/// Whether to require DPoP (Demonstrating Proof-of-Possession)
 	public let requireDpop: Bool
-	/// Policy that controls signed/unsigned issuer metadata handling.
+	/// Policy for handling signed issuer metadata fetched from `/.well-known/openid-credential-issuer`.
+	///
+	/// - `.ignoreSigned` (default): wallet sends `Accept: application/json` and only accepts plain JSON metadata. Backwards-compatible with all existing deployments.
+	/// - `.preferSigned(issuerTrust:)`: wallet sends `Accept: application/jwt, application/json`. If the issuer returns a signed JWT, the signature is verified against the supplied trust anchor; otherwise plain JSON is accepted as a fallback.
+	/// - `.requireSigned(issuerTrust:)`: wallet sends `Accept: application/jwt`. The issuer must return a signed JWT whose signature validates against the supplied trust anchor; plain JSON responses are rejected.
 	public let issuerMetadataPolicy: IssuerMetadataPolicy
 	/// Whether user authentication is required for credential issuance
 	public let userAuthenticationRequired: Bool
