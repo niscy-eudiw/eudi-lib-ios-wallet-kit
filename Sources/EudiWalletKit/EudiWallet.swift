@@ -274,17 +274,21 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 	///   - uriOffer: url with offer
 	/// - Returns: Offered issue information model
 	public func resolveOfferUrlDocTypes(offerUri: String, authFlowRedirectionURI: URL?) async throws -> OfferedIssuanceModel {
-		let result = await CredentialOfferRequestResolver(fetcher: Fetcher<CredentialOfferRequestObject>(session: networkingVci), credentialIssuerMetadataResolver: OpenId4VciService.makeMetadataResolver(networkingVci), authorizationServerMetadataResolver: AuthorizationServerMetadataResolver(oidcFetcher: Fetcher<OIDCProviderMetadata>(session: networkingVci), oauthFetcher: Fetcher<AuthorizationServerMetadata>(session: networkingVci))).resolve(source: try .init(urlString: offerUri), policy: .ignoreSigned)
+		let vciServiceFromOfferUri = await resolveVCIServiceFromOfferUri(offerUri)
+		let policy: IssuerMetadataPolicy = if let vciServiceFromOfferUri { await vciServiceFromOfferUri.config.issuerMetadataPolicy } else { .ignoreSigned }
+		let result = await CredentialOfferRequestResolver(fetcher: Fetcher<CredentialOfferRequestObject>(session: networkingVci), credentialIssuerMetadataResolver: OpenId4VciService.makeMetadataResolver(networkingVci), authorizationServerMetadataResolver: AuthorizationServerMetadataResolver(oidcFetcher: Fetcher<OIDCProviderMetadata>(session: networkingVci), oauthFetcher: Fetcher<AuthorizationServerMetadata>(session: networkingVci))).resolve(source: try .init(urlString: offerUri), policy: policy)
 		switch result {
 		case .success(let offer):
 			let credentialIssuerIdentifier = offer.credentialIssuerIdentifier
 			let urlString = credentialIssuerIdentifier.url.absoluteString
 			// CHECK: Must be pre-registered in registry
-        	guard let vciService = await OpenId4VCIServiceRegistry.shared.getByIssuerURL(issuerURL: urlString) else {
+			let vciService = await OpenId4VCIServiceRegistry.shared.getByIssuerURL(issuerURL: urlString) ?? vciServiceFromOfferUri
+	        	guard let vciService,
+					await vciService.hasIssuerUrl(urlString) else {
             	// REJECT: Not pre-registered = untrusted
             	throw PresentationSession.makeError(str: "Issuer must be pre-configured. Only registered issuers are allowed.", localizationKey: "issuer_not_registered", code: .issuerNotRegistered, context: ["issuer": urlString])
         	}
-			return try await vciService.resolveOfferUrlDocTypes(offerUri: offerUri)
+			return try await vciService.resolveOfferDocTypes(offerUri: offerUri, offer: offer)
 		case .failure(let error):
 			throw PresentationSession.makeError(str: "Unable to resolve credential offer: \(error.localizedDescription)")
 		}
@@ -299,7 +303,8 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 	///  - configuration: Optional OpenId4VciConfiguration to override the default one for this issuance
 	/// - Returns: Array of issued and stored documents
 	public func issueDocumentsByOfferUrl(offerUri: String, docTypes: [OfferedDocModel], txCodeValue: String? = nil, promptMessage: String? = nil, configuration: OpenId4VciConfiguration? = nil) async throws -> [WalletStorage.Document] {
-		let result = await CredentialOfferRequestResolver(fetcher: Fetcher<CredentialOfferRequestObject>(session: networkingVci), credentialIssuerMetadataResolver: OpenId4VciService.makeMetadataResolver(networkingVci), authorizationServerMetadataResolver: AuthorizationServerMetadataResolver(oidcFetcher: Fetcher<OIDCProviderMetadata>(session: networkingVci), oauthFetcher: Fetcher<AuthorizationServerMetadata>(session: networkingVci))).resolve(source: try .init(urlString: offerUri), policy: .ignoreSigned)
+		let issuerMetadataPolicy = configuration?.issuerMetadataPolicy ?? .ignoreSigned
+		let result = await CredentialOfferRequestResolver(fetcher: Fetcher<CredentialOfferRequestObject>(session: networkingVci), credentialIssuerMetadataResolver: OpenId4VciService.makeMetadataResolver(networkingVci), authorizationServerMetadataResolver: AuthorizationServerMetadataResolver(oidcFetcher: Fetcher<OIDCProviderMetadata>(session: networkingVci), oauthFetcher: Fetcher<AuthorizationServerMetadata>(session: networkingVci))).resolve(source: try .init(urlString: offerUri), policy: issuerMetadataPolicy)
 		switch result {
 		case .success(let offer):
 			let urlString = offer.credentialIssuerIdentifier.url.absoluteString
