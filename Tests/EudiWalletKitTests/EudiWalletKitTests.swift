@@ -325,6 +325,43 @@ struct EudiWalletKitTests {
 		try await service.validateIssuedDocuments(document, batch: nil, publicKeys: [])
 	}
 
+	@Test("createKeyBatchWithAttestation returns keys with matching attestation input")
+	func testCreateKeyBatchWithAttestation() async throws {
+		let storageService = TestDataStorageService()
+		let provider = RecordingWalletAttestationsProvider()
+		let wallet = try EudiWallet(
+			eudiWalletConfig: EudiWalletConfiguration(serviceName: "test.createKeyBatchWithAttestation"),
+			storageService: storageService,
+			openID4VciConfigurations: [
+				"attested_issuer": OpenId4VciConfiguration(
+					credentialIssuerURL: "https://issuer.example.com",
+					keyAttestationsConfig: KeyAttestationConfiguration(walletAttestationsProvider: provider),
+					requirePAR: false,
+					requireDpop: false
+				)
+			],
+			secureAreas: [SoftwareSecureArea.create(storage: InMemorySecureKeyStorage())]
+		)
+		let result = try await wallet.createKeyBatchWithAttestation(
+			issuerName: "attested_issuer",
+			id: UUID().uuidString,
+			credentialOptions: CredentialOptions(credentialPolicy: .rotateUse, batchSize: 2),
+			keyOptions: KeyOptions(curve: .P256, secureAreaName: SoftwareSecureArea.name),
+			nonce: "test-nonce"
+		)
+
+		#expect(result.keys.count == 2)
+		#expect(result.keyAttestation == RecordingWalletAttestationsProvider.attestation)
+		let request = try #require(provider.lastRequest)
+		#expect(request.nonce == "test-nonce")
+		#expect(request.keyThumbprints.count == 2)
+
+		let resultKeyThumbprints = try result.keys.map {
+			try ECPublicKey(publicKey: try $0.toSecKey(), additionalParameters: ["use": "sig"]).thumbprint(algorithm: .SHA256)
+		}
+		#expect(request.keyThumbprints == resultKeyThumbprints)
+	}
+
 	private func makeVciService(storageService: TestDataStorageService, issuerURL: String = "https://dev.issuer.eudiw.dev") throws -> OpenId4VciService {
 		let networking = TestNetworking(metadata: try makeSdJwtIssuerMetadata(forResource: "sjwt-pid", issuerURL: issuerURL))
 		let storage = StorageManager(storageService: storageService)
@@ -406,6 +443,59 @@ actor TestDataStorageService: DataStorageService {
 	func deleteDocument(id: String, status: WalletStorage.DocumentStatus) async throws {}
 	func deleteDocuments(status: WalletStorage.DocumentStatus) async throws {}
 	func deleteDocumentCredential(id: String, index: Int) async throws {}
+}
+
+actor InMemorySecureKeyStorage: SecureKeyStorage {
+	private var keyInfoStorage: [String: [String: Data]] = [:]
+	private var keyDataStorage: [String: [String: Data]] = [:]
+
+	func readKeyInfo(id: String) async throws -> [String : Data] {
+		keyInfoStorage[id] ?? [:]
+	}
+
+	func readKeyData(id: String, index: Int) async throws -> [String : Data] {
+		keyDataStorage["\(id)_\(index)"] ?? [:]
+	}
+
+	func writeKeyInfo(id: String, dict: [String : Data]) async throws {
+		keyInfoStorage[id] = dict
+	}
+
+	func writeKeyDataBatch(id: String, startIndex: Int, dicts: [[String : Data]], keyOptions: KeyOptions?) async throws {
+		for (offset, dict) in dicts.enumerated() {
+			keyDataStorage["\(id)_\(startIndex + offset)"] = dict
+		}
+	}
+
+	func deleteKeyBatch(id: String, startIndex: Int, batchSize: Int) async throws {
+		for index in startIndex..<(startIndex + batchSize) {
+			keyDataStorage.removeValue(forKey: "\(id)_\(index)")
+		}
+	}
+
+	func deleteKeyInfo(id: String) async throws {
+		keyInfoStorage.removeValue(forKey: id)
+	}
+}
+
+final class RecordingWalletAttestationsProvider: WalletAttestationsProvider, @unchecked Sendable {
+	static let attestation = "test-key-attestation"
+
+	private(set) var lastRequest: (keyThumbprints: [String], nonce: String?)?
+
+	func getWalletAttestation(key: any JWK) async throws -> String {
+		Self.attestation
+	}
+
+	func getKeysAttestation(keys: [any JWK], nonce: String?) async throws -> String {
+		lastRequest = (try keys.map {
+			guard let publicKey = $0 as? ECPublicKey else {
+				throw WalletError(description: "Expected ECPublicKey for attestation")
+			}
+			return try publicKey.thumbprint(algorithm: .SHA256)
+		}, nonce)
+		return Self.attestation
+	}
 }
 
 final class TestNetworking: Networking {

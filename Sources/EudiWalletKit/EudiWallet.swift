@@ -196,6 +196,20 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 		return try await vciService.issueDocuments(docTypeIdentifiers: docTypeIdentifiers, credentialOptions: credentialOptions, keyOptions: keyOptions, promptMessage: promptMessage)
 	}
 
+	/// Create a batch of keys and a matching key attestation using the attestation provider configured for the issuer.
+	///
+	/// - Parameters:
+	///   - issuerName: The registered issuer service name or issuer URL.
+	///   - id: The identifier used for the generated key batch.
+	///   - credentialOptions: Credential options specifying the batch size and credential policy.
+	///   - keyOptions: Key options controlling secure area and curve selection.
+	///   - nonce: Optional nonce forwarded to the attestation provider.
+	/// - Returns: A `BatchCreateKeyResult` containing the generated keys and the attestation JWT for that batch.
+	public func createKeyBatchWithAttestation(issuerName: String, id: String, credentialOptions: CredentialOptions, keyOptions: KeyOptions? = nil, nonce: String? = nil) async throws -> BatchCreateKeyResult {
+		let vciService = try await resolveVCIService(issuerName: issuerName)
+		return try await vciService.createKeyBatchWithAttestation(id: id, credentialOptions: credentialOptions, keyOptions: keyOptions, nonce: nonce)
+	}
+
 	/// Reissue an existing document using previously stored issuance metadata and authorization data.
 	///
 	/// This method retrieves the document's metadata from storage and uses its credential issuer identifier

@@ -93,7 +93,7 @@ public actor OpenId4VciService {
 			throw PresentationSession.makeError(str: "Unsupported secure area signing algorithm: \(selectedAlgorithm)")
 		}
 		let publicCoseKeys = try await issueReq.createKeyBatch()
-		let publicKeys = try publicCoseKeys.map { try ECPublicKey(publicKey: try $0.toSecKey(), additionalParameters: ["alg": JWSAlgorithm(algType).name, "use": "sig", "kid": UUID().uuidString]) }
+		let publicKeys = try Self.makePublicJwks(from: publicCoseKeys, algorithm: algType)
 		let unlockData = try await issueReq.secureArea.unlockKey(id: issueReq.id)
 		var funcKeyAttestationJWT: FuncKeyAttestationJWT? = nil
 		if config.keyAttestationsConfig != nil, configuration.supportsAttestationProofType {
@@ -103,6 +103,27 @@ public actor OpenId4VciService {
 		}
 		let bindingKeys = try publicKeys.enumerated().map { try createBindingKey($0.element, secureAreaSigningAlg: selectedAlgorithm, unlockData: unlockData, index: $0.offset, funcKeyAttestationJWT: funcKeyAttestationJWT) }
 		return (bindingKeys, publicCoseKeys.map { Data($0.toCBOR(options: CBOROptions()).encode()) })
+	}
+
+	func createKeyBatchWithAttestation(id: String, credentialOptions: CredentialOptions, keyOptions: KeyOptions?, nonce: String?) async throws -> BatchCreateKeyResult {
+		guard let attestationProvider = config.keyAttestationsConfig?.walletAttestationsProvider else {
+			throw PresentationSession.makeError(str: "Key attestations are not configured for issuer \(config.credentialIssuerURL ?? "unknown")")
+		}
+		let request = try IssueRequest(id: id, credentialOptions: credentialOptions, keyOptions: keyOptions)
+		let publicCoseKeys = try await request.createKeyBatch()
+		let publicKeys = try Self.makePublicJwks(from: publicCoseKeys)
+		let keyAttestation = try await attestationProvider.getKeysAttestation(keys: publicKeys, nonce: nonce)
+		return BatchCreateKeyResult(keys: publicCoseKeys, keyAttestation: keyAttestation)
+	}
+
+	private static func makePublicJwks(from publicCoseKeys: [CoseKey], algorithm: JWSAlgorithm.AlgorithmType? = nil) throws -> [ECPublicKey] {
+		try publicCoseKeys.map {
+			var additionalParameters: [String: String] = ["use": "sig", "kid": UUID().uuidString]
+			if let algorithm {
+				additionalParameters["alg"] = JWSAlgorithm(algorithm).name
+			}
+			return try ECPublicKey(publicKey: try $0.toSecKey(), additionalParameters: additionalParameters)
+		}
 	}
 
 	func getKeyAttestationJWT(_ publicKeys: [ECPublicKey], nonce: String?) async throws -> KeyAttestationJWT {
