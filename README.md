@@ -236,6 +236,21 @@ When configured, the wallet will:
 3. Create attestation PoP JWTs for authorization requests
 4. Include key attestations when issuing credentials
 
+If you need the generated keys and their batch attestation outside the issuance flow, use the `createKeyBatchWithAttestation` method to create a batch of keys with a single attestation:
+
+```swift
+let result = try await wallet.createKeyBatchWithAttestation(
+  issuerName: "attested_issuer",
+  id: UUID().uuidString,
+  credentialOptions: CredentialOptions(credentialPolicy: .rotateUse, batchSize: 2),
+  keyOptions: KeyOptions(secureAreaName: SoftwareSecureArea.name, curve: .P256),
+  nonce: "issuer-provided-nonce"
+)
+
+let keys = result.keys
+let keyAttestationJwt = result.keyAttestation
+```
+
 ## Manage documents
 
 The [EudiWallet](https://eu-digital-identity-wallet.github.io/eudi-lib-ios-wallet-kit/documentation/eudiwalletkit/eudiwallet) class provides a set of methods to work with documents.
