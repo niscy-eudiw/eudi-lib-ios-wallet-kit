@@ -282,6 +282,24 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 		return try await vciService.resumePendingIssuance(pendingDoc: pendingDoc, webUrl: webUrl, credentialOptions: credentialOptions, keyOptions: keyOptions)
 	}
 
+	// Get fallback service or create new config
+	func autoRegisterVciConfiguration(_ urlString: String, _ authFlowRedirectionURI: URL?) async throws -> OpenId4VciService {
+		// Todo: validate tot pre-registered isser by a trusted list
+        logger.warning("Issuer for url \(urlString) not registered.")
+		let fallbackService = OpenId4VCIServiceRegistry.shared.getAllServices().first
+		var config: OpenId4VciConfiguration
+		if let fallbackService {
+			config = await fallbackService.config.copy(credentialIssuerURL: urlString)
+			if let authFlowRedirectionURI {
+				config = config.copy(authFlowRedirectionURI: authFlowRedirectionURI)
+			}
+		} else {
+			config = OpenId4VciConfiguration(credentialIssuerURL: urlString)
+		}
+		let vciService = try registerOpenId4VciService(name: urlString, config: config)
+		return vciService
+	}
+
 /// Resolve OpenID4VCI offer URL document types. Resolved offer metadata are cached
 	/// When resolving an offer, defaultKeyOptions are now included
 	/// - Parameters:
@@ -296,12 +314,9 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 			let credentialIssuerIdentifier = offer.credentialIssuerIdentifier
 			let urlString = credentialIssuerIdentifier.url.absoluteString
 			// CHECK: Must be pre-registered in registry
-			let vciService = await OpenId4VCIServiceRegistry.shared.getByIssuerURL(issuerURL: urlString) ?? vciServiceFromOfferUri
-	        	guard let vciService,
-					await vciService.hasIssuerUrl(urlString) else {
-            	// REJECT: Not pre-registered = untrusted
-            	throw PresentationSession.makeError(str: "Issuer must be pre-configured. Only registered issuers are allowed.", localizationKey: "issuer_not_registered", code: .issuerNotRegistered, context: ["issuer": urlString])
-        	}
+			let vciService: OpenId4VciService = if let registeredService = await OpenId4VCIServiceRegistry.shared.getByIssuerURL(issuerURL: urlString) {
+				registeredService
+			} else { try await autoRegisterVciConfiguration(urlString, authFlowRedirectionURI) }
 			return try await vciService.resolveOfferDocTypes(offerUri: offerUri, offer: offer)
 		case .failure(let error):
 			throw PresentationSession.makeError(str: "Unable to resolve credential offer: \(error.localizedDescription)")
@@ -444,16 +459,9 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 	private func logDeletionTransaction(info: DocumentInfo?, status: TransactionLog.Status, errorMessage: String? = nil) async {
 		// TODO: Should we log the deletion event even if the document info is not found?
 		guard let transactionLogger, let info else { return }
-		let transactionLog = TransactionLog(
-			timestamp: TransactionLogUtils.getTimestamp(),
-			status: status,
-			errorMessage: errorMessage,
-			type: .deletion,
-			dataFormat: TransactionLog.DataFormat(info.dataFormat),
-			documentId: info.id,
-			docType: info.docType,
-			displayName: info.displayName
-		)
+		let transactionLog = TransactionLog(timestamp: TransactionLogUtils.getTimestamp(),
+			status: status, errorMessage: errorMessage, type: .deletion,
+			dataFormat: TransactionLog.DataFormat(info.dataFormat), documentId: info.id, docType: info.docType, displayName: info.displayName)
 		do {
 			try await transactionLogger.log(transaction: transactionLog)
 		} catch {
