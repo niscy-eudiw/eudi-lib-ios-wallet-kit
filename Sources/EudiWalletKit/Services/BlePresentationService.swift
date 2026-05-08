@@ -25,7 +25,8 @@ import struct WalletStorage.Document
 /// Implementation is based on the ISO/IEC 18013-5 specification
 
 public final class BlePresentationService: @unchecked Sendable, PresentationService {
-	var bleServerTransfer: MdocGattServer
+	var bleTranport: any MdocBleTransport
+	let bleTransferMode: BleTransferMode
 	public var status: TransferStatus = .initialized
 	var continuationPowerOn: CheckedContinuation<Void, Error>?
 	var continuationRequest: CheckedContinuation<UserRequestInfo, Error>?
@@ -51,7 +52,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 	public var deviceResponseBytes: Data?
 	public var responseMetadata: [Data?]!
 
-	public init(parameters: InitializeTransferData) async throws {
+	public init(parameters: InitializeTransferData, bleTransferMode: BleTransferMode) async throws {
 		let objs = try await parameters.toInitializeTransferInfo()
 		self.docs = try objs.documentObjects.mapValues { try IssuerSigned(data: $0.bytes) }
 		docMetadata = parameters.docMetadata
@@ -59,9 +60,10 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		self.iaca = objs.iaca
 		self.dauthMethod = objs.deviceAuthMethod
 		self.zkSystemRepository = objs.zkSystemRepository
-		bleServerTransfer = MdocGattServer()
+		self.bleTransferMode = bleTransferMode
+		bleTranport = bleTransferMode == .server ? MdocGattServer() : MdocGattCentral()
 		transactionLog = TransactionLogUtils.initializeTransactionLog(type: .presentation, dataFormat: .cbor)
-		bleServerTransfer.delegate = self
+		bleTranport.delegate = self
 	}
 	
 	var isInErrorState: Bool { status == .error }
@@ -89,22 +91,22 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		guard docs.values.allSatisfy({ $0.issuerNameSpaces != nil }) else {
 			throw MdocHelpers.makeError(code: .invalidInputDocument)
 		}
-		deviceEngagement = DeviceEngagement(supportsCentralClientMode: false, supportsPeripheralServerMode: true, rfus: rfus)
+		deviceEngagement = DeviceEngagement(supportsCentralClientMode: bleTransferMode == .client, supportsPeripheralServerMode: bleTransferMode == .server, rfus: rfus)
 		try await deviceEngagement!.makePrivateKey(crv: crv, secureArea: secureArea)
 		sessionEncryption = nil
 #if os(iOS)
 		qrCodePayload = deviceEngagement!.getQrCodePayload()
-		guard bleServerTransfer.isAuthorized else {
+		guard bleTranport.isAuthorized else {
 			throw MdocHelpers.makeError(code: .bleNotAuthorized)
 		}
-		if !bleServerTransfer.isBlePoweredOn {
+		if !bleTranport.isBlePoweredOn {
 			try await withCheckedThrowingContinuation { c in
 				continuationPowerOn = c
 			}
 		} // ensure that BLE is powered on before proceeding
 		logger.info("Created qrCode payload: \(qrCodePayload!)")
 #endif
-		bleServerTransfer.startBleAdvertising()
+		bleTranport.startBleAdvertising()
 	}
 
 	/// Generate device engagement QR code
@@ -113,7 +115,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 	/// - Returns: The image data for the QR code
 	public func startQrEngagement(secureAreaName: String?, crv: CoseEcCurve) async throws -> String {
 		try await performDeviceEngagement(secureArea: SecureAreaRegistry.shared.get(name: secureAreaName), crv: crv)
-		return bleServerTransfer.status == .qrEngagementReady ? (qrCodePayload ?? "") : ""
+		return status == .qrEngagementReady ? (qrCodePayload ?? "") : ""
 	}
 
 	
@@ -124,7 +126,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		logger.log(level: .info, "Transfer status will change to \(newValue)")
 		switch newValue {
 		case .requestReceived:
-			bleServerTransfer.stopBleAdvertising()
+			bleTranport.stopBleAdvertising()
 			let decodedRes = await MdocHelpers.decodeRequestAndInformUser(deviceEngagement: deviceEngagement, docs: docs, docMetadata: docMetadata.compactMapValues { $0 }, iaca: iaca, requestData: readBuffer, privateKeyObjects: privateKeyObjects, dauthMethod: dauthMethod, unlockData: unlockData, readerKeyRawData: nil, handOver: BleTransferMode.QRHandover)
 			switch decodedRes {
 			case .success(let decoded):
@@ -143,8 +145,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 				return
 			}
 		case .disconnected where status != .disconnected:
-			sessionEncryption = nil
-			bleServerTransfer.stop()
+			stop()
 		case .poweredOn:
 			continuationPowerOn?.resume(returning: ())
 			continuationPowerOn = nil
@@ -157,6 +158,21 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 			break
 		}
 	}
+	
+	public func stop() {
+		bleTranport.stop()
+		sessionEncryption = nil
+		qrCodePayload = nil
+		if let pk = deviceEngagement?.privateKey {
+			Task { @MainActor in
+				try? await pk.secureArea.deleteKeyBatch(id: pk.privateKeyId, startIndex: 0, batchSize: 1)
+				deviceEngagement?.privateKey = nil
+			}
+		}
+		if status == .error {
+			status = .initializing
+		}
+	}
 
 	public func userSelected(_ b: Bool, _ items: RequestItems?) async {
 		status = .userSelected
@@ -166,7 +182,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		var errorToSend: Error?
 		defer {
 			logger.info("Prepare \(bytesToSend.0.count) bytes to send")
-			bleServerTransfer.sendData(bytesToSend.0)
+			bleTranport.sendData(bytesToSend.0)
 		}
 		if !b {
 			errorToSend = MdocHelpers.makeError(code: .userRejected)
@@ -231,7 +247,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 	}
 	
 	public func waitForDisconnect() async throws {
-		if bleServerTransfer.status == .disconnected { return }
+		if status == .disconnected { return }
 		try await withCheckedThrowingContinuation { c in
 			continuationDisconnect = c
 		}
