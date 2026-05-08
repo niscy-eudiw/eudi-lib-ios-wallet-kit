@@ -257,8 +257,8 @@ public actor OpenId4VciService {
 		let authorizedOutcome: AuthorizeRequestOutcome
 		if var authorized {
 			do {
+				logger.info("Access token issued at: \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp)), now: \(Date()), expires at \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp + (authorized.accessToken.expiresIn ?? 0)))")
 				if authorized.isAccessTokenExpired() {
-					logger.info("Access token for offer \(offerUri) expired at \(Date(timeIntervalSinceReferenceDate: authorized.timeStamp + (authorized.accessToken.expiresIn ?? 0))).")
 					if let refrExpiresIn = authorized.refreshToken?.expiresIn, authorized.isRefreshTokenExpired(clock: refrExpiresIn) {
 						logger.info("Refresh token for offer \(offerUri) expired at \(Date(timeIntervalSinceReferenceDate: authorized.timeStamp + refrExpiresIn)).")
 					}
