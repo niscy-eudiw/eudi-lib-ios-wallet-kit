@@ -29,6 +29,8 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 	var bleServer: MdocGattServer?
 	let bleTransferMode: BleTransferMode
 	public var status: TransferStatus = .initialized
+	var isPeripheralManagerPoweredOn = false
+	var isCentralManagerPoweredOn = false
 	var continuationPowerOn: CheckedContinuation<Void, Error>?
 	var continuationRequest: CheckedContinuation<UserRequestInfo, Error>?
 	var continuationDisconnect: CheckedContinuation<Void, Error>?
@@ -102,11 +104,14 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		guard bleTranport.isAuthorized else {
 			throw MdocHelpers.makeError(code: .bleNotAuthorized)
 		}
-		if !bleTranport.isBlePoweredOn {
+		//if !bleTranport.isBlePoweredOn {
 			try await withCheckedThrowingContinuation { c in
 				continuationPowerOn = c
+				evaluatePowerOnStatus()
 			}
-		} // ensure that BLE is powered on before proceeding
+		//} // ensure that BLE is powered on before proceeding
+		continuationPowerOn = nil
+		status = .qrEngagementReady
 		logger.info("Created qrCode payload: \(qrCodePayload!)")
 #endif
 		bleTranport.startBleAdvertising()
@@ -149,18 +154,16 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 				didFinishedWithError(err)
 				return
 			}
+		case .connected: break
 		case .disconnected where status != .disconnected:
 			stop()
-		case .poweredOn:
-			continuationPowerOn?.resume(returning: ())
-			continuationPowerOn = nil
+		case .poweredOn: break
 		case .qrEngagementReady:
 			break
 		case .disconnected:
 			continuationDisconnect?.resume(returning: ())
 			continuationDisconnect = nil
-		default:
-			break
+		default: break
 		}
 	}
 	
@@ -189,7 +192,6 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		defer {
 			logger.info("Prepare \(bytesToSend.0.count) bytes to send")
 			bleTranport.sendData(bytesToSend.0)
-			bleServer?.sendData(bytesToSend.0)
 		}
 		if !b {
 			errorToSend = MdocHelpers.makeError(code: .userRejected)
@@ -278,6 +280,33 @@ extension BlePresentationService: MdocOfflineDelegate {
 		logger.info("Ble finished with error: \(error)")
 		continuationRequest?.resume(throwing: error); continuationRequest = nil
 		continuationDisconnect?.resume(throwing: error); continuationDisconnect = nil
+	}
+
+	func evaluatePowerOnStatus() {
+		if (bleTransferMode == .server && isPeripheralManagerPoweredOn) || (bleTransferMode == .client && isCentralManagerPoweredOn) || (bleTransferMode == .both && isPeripheralManagerPoweredOn && isCentralManagerPoweredOn) {
+			continuationPowerOn?.resume(returning: ())
+			continuationPowerOn = nil
+		}
+}
+
+public func didPoweredOn(isPeripheralManager: Bool) {
+		logger.info("Ble powered on, isPeripheralManager: \(isPeripheralManager)")
+		if isPeripheralManager {
+			isPeripheralManagerPoweredOn = true
+		} else {
+			isCentralManagerPoweredOn = true
+		}
+		evaluatePowerOnStatus()
+	}
+
+	/// BLE device connected
+	/// - Parameters:	
+	///  - isPeripheral: True if the device connected is a peripheral
+	/// - deviceName: The name of the connected device if available
+	public func didConnected(isPeripheral: Bool, deviceName: String?) {
+		logger.info("Ble device connected, isPeripheral: \(isPeripheral), deviceName: \(deviceName ?? "unknown")")
+		if isPeripheral { bleServer = nil }
+		else if bleTransferMode == .both { bleTranport = bleServer! }
 	}
 
 	/// Received request handler
