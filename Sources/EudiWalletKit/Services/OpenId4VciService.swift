@@ -853,7 +853,8 @@ public actor OpenId4VciService {
 		}
 		let expectedIssuer = try expectedSdJwtIssuerURL()
 		let signedSdJwt = try CompactParser().getSignedSdJwt(serialisedString: serialized)
-		try validateSdJwtIssuer(serialized, expectedIssuer: expectedIssuer)
+		let hasX5c = !(signedSdJwt.jwt.protectedHeader.x509CertificateChain ?? []).isEmpty
+		try validateSdJwtIssuer(serialized, expectedIssuer: expectedIssuer, requireIssuer: !hasX5c)
 		let verifier = SDJWTVerifier(sdJwt: signedSdJwt)
 		// Determine the issuer public key: prefer x5c certificate chain, fall back to metadata
 		let issuerKey: any KeyExpressible
@@ -894,14 +895,21 @@ public actor OpenId4VciService {
 		return issuerURL
 	}
 
-	private func validateSdJwtIssuer(_ serialized: String, expectedIssuer: URL) throws {
+	private func validateSdJwtIssuer(_ serialized: String, expectedIssuer: URL, requireIssuer: Bool = true) throws {
 		let (_, payload, _) = StorageManager.extractJWTParts(serialized)
 		guard let payloadData = Data(base64URLEncoded: payload) else {
 			throw PresentationSession.makeError(str: "Failed to decode SD-JWT payload")
 		}
 		let payloadJson = try JSON(data: payloadData)
-		guard let issuer = payloadJson["iss"].string, URL(string: issuer) != nil else {
+		guard let issuer = payloadJson["iss"].string else {
+			if requireIssuer { throw PresentationSession.makeError(str: "Issued SD-JWT is missing a valid issuer") }
+			return // If issuer is not required, skip validation
+		}
+		guard let issuerURL = URL(string: issuer) else {
 			throw PresentationSession.makeError(str: "Issued SD-JWT is missing a valid issuer")
+		}
+		if normalized(url: issuerURL) != normalized(url: expectedIssuer) {
+			logger.warning("Issued SD-JWT issuer does not match expected issuer")
 		}
 	}
 	/// Returns the public key from the leaf certificate.
