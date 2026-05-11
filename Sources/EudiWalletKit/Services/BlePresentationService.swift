@@ -26,6 +26,7 @@ import struct WalletStorage.Document
 
 public final class BlePresentationService: @unchecked Sendable, PresentationService {
 	var bleTranport: any MdocBleTransport
+	var bleServer: MdocGattServer?
 	let bleTransferMode: BleTransferMode
 	public var status: TransferStatus = .initialized
 	var continuationPowerOn: CheckedContinuation<Void, Error>?
@@ -62,8 +63,10 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		self.zkSystemRepository = objs.zkSystemRepository
 		self.bleTransferMode = bleTransferMode
 		bleTranport = bleTransferMode == .server ? MdocGattServer() : MdocGattCentral()
+		if bleTransferMode == .both { bleServer = MdocGattServer() }
 		transactionLog = TransactionLogUtils.initializeTransactionLog(type: .presentation, dataFormat: .cbor)
 		bleTranport.delegate = self
+		bleServer?.delegate = self
 	}
 	
 	var isInErrorState: Bool { status == .error }
@@ -91,7 +94,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		guard docs.values.allSatisfy({ $0.issuerNameSpaces != nil }) else {
 			throw MdocHelpers.makeError(code: .invalidInputDocument)
 		}
-		deviceEngagement = DeviceEngagement(supportsCentralClientMode: bleTransferMode == .client, supportsPeripheralServerMode: bleTransferMode == .server, rfus: rfus)
+		deviceEngagement = DeviceEngagement(supportsCentralClientMode: bleTransferMode == .client || bleTransferMode == .both, supportsPeripheralServerMode: bleTransferMode == .server || bleTransferMode == .both, rfus: rfus)
 		try await deviceEngagement!.makePrivateKey(crv: crv, secureArea: secureArea)
 		sessionEncryption = nil
 #if os(iOS)
@@ -107,6 +110,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		logger.info("Created qrCode payload: \(qrCodePayload!)")
 #endif
 		bleTranport.startBleAdvertising()
+		bleServer?.startBleAdvertising()
 	}
 
 	/// Generate device engagement QR code
@@ -127,6 +131,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		switch newValue {
 		case .requestReceived:
 			bleTranport.stopBleAdvertising()
+			bleServer?.stopBleAdvertising()
 			let decodedRes = await MdocHelpers.decodeRequestAndInformUser(deviceEngagement: deviceEngagement, docs: docs, docMetadata: docMetadata.compactMapValues { $0 }, iaca: iaca, requestData: readBuffer, privateKeyObjects: privateKeyObjects, dauthMethod: dauthMethod, unlockData: unlockData, readerKeyRawData: nil, handOver: BleTransferMode.QRHandover)
 			switch decodedRes {
 			case .success(let decoded):
@@ -161,6 +166,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 	
 	public func stop() {
 		bleTranport.stop()
+		bleServer?.stop()
 		sessionEncryption = nil
 		qrCodePayload = nil
 		if let pk = deviceEngagement?.privateKey {
@@ -183,6 +189,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		defer {
 			logger.info("Prepare \(bytesToSend.0.count) bytes to send")
 			bleTranport.sendData(bytesToSend.0)
+			bleServer?.sendData(bytesToSend.0)
 		}
 		if !b {
 			errorToSend = MdocHelpers.makeError(code: .userRejected)
