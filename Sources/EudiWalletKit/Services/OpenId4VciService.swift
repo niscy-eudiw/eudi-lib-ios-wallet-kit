@@ -257,10 +257,10 @@ public actor OpenId4VciService {
 		let authorizedOutcome: AuthorizeRequestOutcome
 		if var authorized {
 			do {
+				logger.info("Access token issued at: \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp)), now: \(Date()), expires at \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp + (authorized.accessToken.expiresIn ?? 0)))")
 				if authorized.isAccessTokenExpired() {
-					logger.info("Access token for offer \(offerUri) expired at \(Date(timeIntervalSince1970: authorized.timeStamp + (authorized.accessToken.expiresIn ?? 0))).")
 					if let refrExpiresIn = authorized.refreshToken?.expiresIn, authorized.isRefreshTokenExpired(clock: refrExpiresIn) {
-						logger.info("Refresh token for offer \(offerUri) expired at \(Date(timeIntervalSince1970: authorized.timeStamp + refrExpiresIn)).")
+						logger.info("Refresh token for offer \(offerUri) expired at \(Date(timeIntervalSinceReferenceDate: authorized.timeStamp + refrExpiresIn)).")
 					}
 					authorized = try await issuer.refresh(client: vciConfig.client, authorizedRequest: authorized, dPopNonce: nil)
 					logger.info("Refreshed authorized request for offer \(offerUri)")
@@ -268,11 +268,8 @@ public actor OpenId4VciService {
 				authorizedOutcome = .authorized(authorized)
 				return (authorizedOutcome, issuer, credentialInfos)
 			}
-			catch {
-				logger.error("Failed to refresh provided authorized request: \(error).")
-				if backgroundOnly {
-					throw PresentationSession.makeError(str: "Background reissuance failed: \(error).", localizationKey: "background_reissue_not_possible")
-				}
+			catch CredentialIssuanceError.requestFailed(let code, let error, let description) where !backgroundOnly && (400..<500).contains(code) {
+				logger.error("Authentication failure with status code: \(code), error: \(error) \(description ?? "").")
 			}
 		}
 		if let preAuthorizedCode, let authCode = try? IssuanceAuthorization(preAuthorizationCode: preAuthorizedCode, txCode: txCodeSpec) {
@@ -856,7 +853,8 @@ public actor OpenId4VciService {
 		}
 		let expectedIssuer = try expectedSdJwtIssuerURL()
 		let signedSdJwt = try CompactParser().getSignedSdJwt(serialisedString: serialized)
-		try validateSdJwtIssuer(serialized, expectedIssuer: expectedIssuer)
+		let hasX5c = !(signedSdJwt.jwt.protectedHeader.x509CertificateChain ?? []).isEmpty
+		try validateSdJwtIssuer(serialized, expectedIssuer: expectedIssuer, requireIssuer: !hasX5c)
 		let verifier = SDJWTVerifier(sdJwt: signedSdJwt)
 		// Determine the issuer public key: prefer x5c certificate chain, fall back to metadata
 		let issuerKey: any KeyExpressible
@@ -897,14 +895,21 @@ public actor OpenId4VciService {
 		return issuerURL
 	}
 
-	private func validateSdJwtIssuer(_ serialized: String, expectedIssuer: URL) throws {
+	private func validateSdJwtIssuer(_ serialized: String, expectedIssuer: URL, requireIssuer: Bool = true) throws {
 		let (_, payload, _) = StorageManager.extractJWTParts(serialized)
 		guard let payloadData = Data(base64URLEncoded: payload) else {
 			throw PresentationSession.makeError(str: "Failed to decode SD-JWT payload")
 		}
 		let payloadJson = try JSON(data: payloadData)
-		guard let issuer = payloadJson["iss"].string, URL(string: issuer) != nil else {
+		guard let issuer = payloadJson["iss"].string else {
+			if requireIssuer { throw PresentationSession.makeError(str: "Issued SD-JWT is missing a valid issuer") }
+			return // If issuer is not required, skip validation
+		}
+		guard let issuerURL = URL(string: issuer) else {
 			throw PresentationSession.makeError(str: "Issued SD-JWT is missing a valid issuer")
+		}
+		if normalized(url: issuerURL) != normalized(url: expectedIssuer) {
+			logger.warning("Issued SD-JWT issuer does not match expected issuer")
 		}
 	}
 	/// Returns the public key from the leaf certificate.
@@ -1003,6 +1008,12 @@ public final class OpenId4VCIServiceRegistry: @unchecked Sendable {
 		lock.lock()
 		defer { lock.unlock() }
 		return services[name]
+	}
+
+	public func getAllNames() -> [String] {
+		lock.lock()
+		defer { lock.unlock() }
+		return Array(services.keys)
 	}
 
 	public func getAllServices() -> [OpenId4VciService] {
