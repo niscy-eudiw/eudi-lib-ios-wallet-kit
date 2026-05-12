@@ -256,16 +256,21 @@ public actor OpenId4VciService {
 		let vciConfig = try await config.toOpenId4VCIConfig(credentialIssuerId: offer.credentialIssuerIdentifier.url.absoluteString, clientAttestationPopSigningAlgValuesSupported: offer.authorizationServerMetadata.clientAttestationPopSigningAlgValuesSupported)
 		let authorizedOutcome: AuthorizeRequestOutcome
 		if var authorized {
-			logger.info("Access token issued at: \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp)), now: \(Date()), expires at \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp + (authorized.accessToken.expiresIn ?? 0)))")
-			if authorized.isAccessTokenExpired() || forceRefreshToken {
-				if let refrExpiresIn = authorized.refreshToken?.expiresIn, authorized.isRefreshTokenExpired(clock: refrExpiresIn) {
-					logger.info("Refresh token for offer \(offerUri) expired at \(Date(timeIntervalSinceReferenceDate: authorized.timeStamp + refrExpiresIn)).")
+			do {
+				logger.info("Access token issued at: \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp)), now: \(Date()), expires at \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp + (authorized.accessToken.expiresIn ?? 0)))")
+				if authorized.isAccessTokenExpired() || forceRefreshToken {
+					if let refrExpiresIn = authorized.refreshToken?.expiresIn, authorized.isRefreshTokenExpired(clock: refrExpiresIn) {
+						logger.info("Refresh token for offer \(offerUri) expired at \(Date(timeIntervalSinceReferenceDate: authorized.timeStamp + refrExpiresIn)).")
+					}
+					authorized = try await issuer.refresh(client: vciConfig.client, authorizedRequest: authorized, dPopNonce: nil)
+					logger.info("Refreshed authorized request for offer \(offerUri)")
 				}
-				authorized = try await issuer.refresh(client: vciConfig.client, authorizedRequest: authorized, dPopNonce: nil)
-				logger.info("Refreshed authorized request for offer \(offerUri)")
+				authorizedOutcome = .authorized(authorized)
+				return (authorizedOutcome, issuer, credentialInfos)
 			}
-			authorizedOutcome = .authorized(authorized)
-			return (authorizedOutcome, issuer, credentialInfos)
+			catch CredentialIssuanceError.requestFailed(let code, let error, let description) where !backgroundOnly && forceRefreshToken && (400..<500).contains(code) {
+				logger.error("Refresh token authentication failure with status code: \(code), error: \(error) \(description ?? "").")
+			}
 		}
 		if let preAuthorizedCode, let authCode = try? IssuanceAuthorization(preAuthorizationCode: preAuthorizedCode, txCode: txCodeSpec) {
 			let authorized = try await issuer.authorizeWithPreAuthorizationCode(credentialOffer: offer, authorizationCode: authCode, client: vciConfig.client, transactionCode: txCodeValue)
