@@ -251,7 +251,7 @@ extension JSON {
 			}
 			return (.integer(UInt64(intValue)), stringValue)
 		case .string:
-			if isBase64ByteClaim(name: name, valueType: valueType), let d = decodeBase64ByteClaim(stringValue) {
+			if isBase64ByteClaim(name: name, value: stringValue, valueType: valueType), let d = decodeBase64ByteClaim(stringValue) {
 				return (.bytes(d.bytes), "\(d.count) bytes")
 			}
 			if name == "sex", let isex = Int(stringValue), isex >= 0, isex <= 2 {
@@ -267,14 +267,15 @@ extension JSON {
 		}
 	}
 
-	private func isBase64ByteClaim(name: String, valueType: String?) -> Bool {
+	private func isBase64ByteClaim(name: String, value: String, valueType: String?) -> Bool {
 		if let valueType {
 			let normalized = valueType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 			if ["jpeg", "jpg", "image/jpeg", "png", "image/png"].contains(normalized) {
 				return true
 			}
 		}
-		return name == "portrait" || name == "signature_usual_mark"
+		let (isValid, _) = isValidDataUrlAndGetCommaIndex(from: value)
+		return isValid || name == "portrait" || name == "signature_usual_mark"
 	}
 
 	private func decodeBase64ByteClaim(_ value: String) -> Data? {
@@ -284,12 +285,19 @@ extension JSON {
 		return Data(base64urlEncoded: value) ?? Data(base64Encoded: value)
 	}
 
-	private func dataUrlBase64Payload(from value: String) -> String? {
+	private func isValidDataUrlAndGetCommaIndex(from value: String) -> (isValid: Bool, commaIndex: String.Index?) {
 		let prefix = String(value.prefix(5))
-		guard prefix.caseInsensitiveCompare("data:") == .orderedSame, let commaIndex = value.firstIndex(of: ",") else { return nil }
+		guard prefix.caseInsensitiveCompare("data:") == .orderedSame else { return (false, nil) }
+		guard let commaIndex = value.firstIndex(of: ",") else { return (false, nil) }
 		let metadataStartIndex = value.index(value.startIndex, offsetBy: 5)
 		let metadata = value[metadataStartIndex..<commaIndex].lowercased()
-		guard metadata.split(separator: ";").contains("base64") else { return nil }
+		guard metadata.split(separator: ";").contains("base64") else { return (false, nil) }
+		return (true, commaIndex)
+	}
+
+	private func dataUrlBase64Payload(from value: String) -> String? {
+		let (isValid, commaIndex) = isValidDataUrlAndGetCommaIndex(from: value)
+		guard isValid, let commaIndex = commaIndex else { return nil }
 		return String(value[value.index(after: commaIndex)...])
 	}
 
