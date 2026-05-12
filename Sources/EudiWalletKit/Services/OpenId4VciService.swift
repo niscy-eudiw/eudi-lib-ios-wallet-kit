@@ -273,7 +273,7 @@ public actor OpenId4VciService {
 		} else if !backgroundOnly {
 			authorizedOutcome = try await authorizeRequestWithAuthCodeUseCase(issuer: issuer, offer: offer)
 		} else {
-			throw PresentationSession.makeError(str: "Offer requires user interaction for authorization, but backgroundOnly is set to true")
+			throw PresentationSession.makeError(str: "Offer requires user interaction for authorization, but backgroundOnly is set to true, forced refresh token is \(forceRefreshToken).")
 		}
 		return (authorizedOutcome, issuer, credentialInfos)
 	}
