@@ -259,7 +259,7 @@ public actor OpenId4VciService {
 			do {
 				logger.info("Access token issued at: \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp)), now: \(Date()), expires at \(Date(timeIntervalSinceReferenceDate:authorized.timeStamp + (authorized.accessToken.expiresIn ?? 0)))")
 				if authorized.isAccessTokenExpired() || forceRefreshToken {
-					if let refrExpiresIn = authorized.refreshToken?.expiresIn, authorized.isRefreshTokenExpired(clock: refrExpiresIn) {
+					if let refrExpiresIn = authorized.refreshToken?.expiresIn, authorized.isRefreshTokenExpired(clock: Date.now.timeIntervalSinceReferenceDate) {
 						logger.info("Refresh token for offer \(offerUri) expired at \(Date(timeIntervalSinceReferenceDate: authorized.timeStamp + refrExpiresIn)).")
 					}
 					authorized = try await issuer.refresh(client: vciConfig.client, authorizedRequest: authorized, dPopNonce: nil)
@@ -268,15 +268,17 @@ public actor OpenId4VciService {
 				authorizedOutcome = .authorized(authorized)
 				return (authorizedOutcome, issuer, credentialInfos)
 			}
-			catch CredentialIssuanceError.requestFailed(let code, let error, let description) where !backgroundOnly && (400..<500).contains(code) {
-				logger.error("Authentication failure with status code: \(code), error: \(error) \(description ?? "").")
+			catch CredentialIssuanceError.requestFailed(let code, let error, let description) where !backgroundOnly && forceRefreshToken && (400..<500).contains(code) {
+				logger.error("Refresh token authentication failure with status code: \(code), error: \(error) \(description ?? "").")
 			}
 		}
 		if let preAuthorizedCode, let authCode = try? IssuanceAuthorization(preAuthorizationCode: preAuthorizedCode, txCode: txCodeSpec) {
 			let authorized = try await issuer.authorizeWithPreAuthorizationCode(credentialOffer: offer, authorizationCode: authCode, client: vciConfig.client, transactionCode: txCodeValue)
 			authorizedOutcome = .authorized(authorized)
-		} else {
+		} else if !backgroundOnly {
 			authorizedOutcome = try await authorizeRequestWithAuthCodeUseCase(issuer: issuer, offer: offer)
+		} else {
+			throw PresentationSession.makeError(str: "Offer requires user interaction for authorization, but backgroundOnly is set to true, forced refresh token is \(forceRefreshToken).")
 		}
 		return (authorizedOutcome, issuer, credentialInfos)
 	}
