@@ -38,6 +38,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 	var request: UserRequestInfo?
 	var readBuffer = Data()
 	public var transactionLog: TransactionLog
+	public var documentIds: [Document.ID] = []
 	public var zkpDocumentIds: [Document.ID]?
 	public var flow: FlowType { .ble }
 	public var deviceEngagement: DeviceEngagement?
@@ -199,7 +200,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 		if let items {
 			do {
 				let docTypeReq = deviceRequest?.docRequests.first?.itemsRequest.docType ?? ""
-				guard let (drToSend, _, _, resMetadata, resZkpDocIds) = try await MdocHelpers.getDeviceResponseToSend(deviceRequest: deviceRequest!, issuerSigned: docs, docMetadata: docMetadata.compactMapValues { $0 }, selectedItems: items, sessionEncryption: sessionEncryption, eReaderKey: sessionEncryption!.sessionKeys.publicKey, privateKeyObjects: privateKeyObjects, dauthMethod: dauthMethod, unlockData: unlockData, zkSystemRepository: zkSystemRepository) else {
+				guard let (drToSend, _, _, resMetadata, resDocIds, resZkpDocIds) = try await MdocHelpers.getDeviceResponseToSend(deviceRequest: deviceRequest!, issuerSigned: docs, docMetadata: docMetadata.compactMapValues { $0 }, selectedItems: items, sessionEncryption: sessionEncryption, eReaderKey: sessionEncryption!.sessionKeys.publicKey, privateKeyObjects: privateKeyObjects, dauthMethod: dauthMethod, unlockData: unlockData, zkSystemRepository: zkSystemRepository) else {
 					errorToSend = MdocHelpers.getErrorNoDocuments(docTypeReq)
 					return
 				}
@@ -213,6 +214,7 @@ public final class BlePresentationService: @unchecked Sendable, PresentationServ
 					bytesToSend = bytes
 					deviceResponseBytes = bytes.1
 					responseMetadata = resMetadata
+					documentIds = resDocIds
 					zkpDocumentIds = resZkpDocIds
 				case .failure(let err):
 					errorToSend = err
