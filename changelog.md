@@ -2,7 +2,7 @@
 
 ### BLE Transfer Mode
 
-The `bleTransferMode` parameter of ``EudiWalletConfiguration`` controls the Bluetooth Low Energy (BLE) role used during proximity (ISO 18013-5) presentation:
+The `bleTransferMode` property on ``EudiWallet`` controls the Bluetooth Low Energy (BLE) role used during proximity (ISO 18013-5) presentation. It can be set through ``EudiWalletConfiguration/bleTransferMode`` during initialization:
 
 - **`.server`** (default): The holder device acts as a GATT peripheral (server), advertising and waiting for the reader to connect.
 - **`.client`**: The holder device acts as a GATT central (client), scanning and connecting to the reader's peripheral.
