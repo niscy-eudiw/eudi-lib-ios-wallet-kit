@@ -819,6 +819,8 @@ public actor OpenId4VciService {
 				docTypeToSave = docType ?? "PENDING"
 				displayName = pendingAuthModel.configuration.display.getName(uiCulture)
 			}
+			// Download credential display images eagerly at issuance time.
+			docMetadata = await docMetadata.downloadingDisplayImages()
 			let newDocStatus: WalletStorage.DocumentStatus = issueOutcome.isDeferred ? .deferred : (issueOutcome.isPending ? .pending : .issued)
 			let newDocument = WalletStorage.Document(id: issueReq.id, docType: docTypeToSave, docDataFormat: format, data: dataToSave, docKeyInfo: dkInfo.toData(), createdAt: Date(), metadata: docMetadata.toData(), displayName: displayName, status: newDocStatus)
 			if newDocStatus == .pending { await storage.appendDocModel(newDocument, uiCulture: uiCulture); return newDocument }
