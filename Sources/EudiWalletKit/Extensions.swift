@@ -629,9 +629,9 @@ public extension RegistrationCertificatePolicy {
 		certificateTrust: certificateTrust,
 		validatePolicy: { _, wrprc, dcql in
 		  guard let permittedDcql = await policyDcql(wrprc) else {
-			return []
+			  return [:]
 		  }
-		  return validateDcqlPolicy(dcql: dcql, policyDcql: permittedDcql)
+			return  ["":OpenId4VpUtils.validateDcqlPolicy(dcql: dcql, policyDcql: permittedDcql)]
 		}
 	  )
 	}

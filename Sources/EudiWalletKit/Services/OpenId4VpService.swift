@@ -116,7 +116,7 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 		openId4Vp = OpenID4VP(walletConfiguration: getWalletConf())
 		switch await openId4Vp.authorize(fetcher: Fetcher<String>(session: networking), poster: Poster(session: networking), url: openid4VPURI)  {
 		case .notSecured(data: let rrd, policyWarnings: let warnings):
-			if !warnings.isEmpty { logger.warning("Policy warnings: \(warnings.map(\.message))") }
+			if !warnings.isEmpty { logger.warning("Policy warnings: \(warnings.mapValues{$0.map(\.message)})") }
 			if case .redirectUri = rrd.client { return try handleRequestData(rrd) }
 			else { throw WalletError(description: "Not secured request", code: .notSecuredRequest) }
 		case .invalidResolution(error: let error, dispatchDetails: let details):
@@ -124,7 +124,7 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 			if let details { logger.error("Details: \(details)") }
 			throw WalletError(description: "OpenID4VP request error: \(readerCertificateValidationMessage ?? error.errorDescription ?? error.localizedDescription)", code: readerCertificateValidationMessage != nil ? .trustError : .invalidQueryResolution, innerError: error)
 		case let .jwt(request: rrd, policyWarnings: warnings):
-			if !warnings.isEmpty { logger.warning("Policy warnings: \(warnings.map(\.message))") }
+			if !warnings.isEmpty { logger.warning("Policy warnings: \(warnings.mapValues{$0.map(\.message)})") }
 			return try handleRequestData(rrd)
 		}
 	}
