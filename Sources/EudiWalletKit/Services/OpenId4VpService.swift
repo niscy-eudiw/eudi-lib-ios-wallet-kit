@@ -391,7 +391,8 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 				supportedTransactionDataTypes: openID4VpConfig.supportedTransactionDataTypes),
 			errorDispatchPolicy: .allClients,
 			session: networking,
-			responseEncryptionConfiguration: openID4VpConfig.responseEncryptionConfiguration ?? .default())
+			responseEncryptionConfiguration: openID4VpConfig.responseEncryptionConfiguration ?? .default(),
+			registrationCertificatePolicy: openID4VpConfig.registrationCertificatePolicy)
 		return res
 	}
 

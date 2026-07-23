@@ -483,6 +483,58 @@ extension OpenId4VpUtils {
 		}
 		return resultDict
 	}
+	
+	/// Validates that the request DCQL does not exceed the scope declared in the policy DCQL.
+	/// Issues warnings for any extra claims requested beyond what the policy permits.
+	/// - Parameters:
+	///   - dcql: The DCQL from the authorization request
+	///   - policyDcql: The DCQL declared in the WRPRC (permitted scope)
+	/// - Returns: Warnings for each extra claim path found in the request but not in the policy
+	static func validateDcqlPolicy(dcql: DCQL, policyDcql: DCQL) -> [PolicyViolation] {
+	  var violations: [PolicyViolation] = []
+
+	  for requestCredential in dcql.credentials {
+		// Find matching policy credential by format and query id
+		let policyCredential = policyDcql.credentials.first { policyCredential in
+		  policyCredential.format == requestCredential.format
+		  && policyCredential.id == requestCredential.id
+		}
+
+		guard let policyCredential else {
+		  // No matching credential in policy — warn about the entire credential query
+		  violations.append(.warning(PolicyViolationWarning(
+			code: "DCQL_EXTRA_CREDENTIAL",
+			message: "Credential query '\(requestCredential.id.value)' (format: \(requestCredential.format.format)) is not declared in the registration certificate policy"
+		  )))
+		  continue
+		}
+
+		// Compare claims: find claims in request that are not covered by policy
+		guard let requestClaims = requestCredential.claims else { continue }
+		let policyClaims = policyCredential.claims ?? []
+
+		let policyPaths = Set(policyClaims.map(\.path))
+
+		let extraClaims = requestClaims.filter { requestClaim in
+		  !policyPaths.contains(where: { policyPath in
+			requestClaim.path == policyPath
+		  })
+		}
+
+		if !extraClaims.isEmpty {
+		  let extraPaths = extraClaims
+			.map { $0.path.value.map(\.description).joined(separator: "/") }
+			.joined(separator: ", ")
+
+		  violations.append(.warning(PolicyViolationWarning(
+			code: "DCQL_EXTRA_CLAIMS",
+			message: "Credential '\(requestCredential.id.value)' requests claims beyond policy scope. Extra fields: [\(extraPaths)]"
+		  )))
+		}
+	  }
+
+	  return violations
+	}
 
 	/// Resolves claims for a specific credential query and credential
 	/// - Throws: WalletError if claims cannot be satisfied, with details about the first missing claim
