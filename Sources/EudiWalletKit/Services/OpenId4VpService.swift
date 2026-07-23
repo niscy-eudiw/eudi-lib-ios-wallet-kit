@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,7 +36,7 @@ import struct WalletStorage.Document
 
 /// Implementation is based on the OpenID4VP specification
 public final class OpenId4VpService: @unchecked Sendable, PresentationService {
- 	public var status: TransferStatus = .initialized
+	public var status: TransferStatus = .initialized
 	var openid4VPlink: String
 	let transferInfo: InitializeTransferInfo
 	// map of document-id to IssuerSigned
@@ -115,14 +115,16 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 		guard status != .error, let openid4VPURI = URL(string: openid4VPlink) else { throw WalletError(description: "Invalid link \(openid4VPlink)", code: .invalidQueryResolution) }
 		openId4Vp = OpenID4VP(walletConfiguration: getWalletConf())
 		switch await openId4Vp.authorize(fetcher: Fetcher<String>(session: networking), poster: Poster(session: networking), url: openid4VPURI)  {
-		case .notSecured(data: let rrd):
+		case .notSecured(data: let rrd, policyWarnings: let warnings):
+			if !warnings.isEmpty { logger.warning("Policy warnings: \(warnings.map(\.message))") }
 			if case .redirectUri = rrd.client { return try handleRequestData(rrd) }
 			else { throw WalletError(description: "Not secured request", code: .notSecuredRequest) }
 		case .invalidResolution(error: let error, dispatchDetails: let details):
 			logger.error("Invalid resolution: \(error.errorDescription ?? error.localizedDescription)")
 			if let details { logger.error("Details: \(details)") }
 			throw WalletError(description: "OpenID4VP request error: \(readerCertificateValidationMessage ?? error.errorDescription ?? error.localizedDescription)", code: readerCertificateValidationMessage != nil ? .trustError : .invalidQueryResolution, innerError: error)
-		case let .jwt(request: rrd):
+		case let .jwt(request: rrd, policyWarnings: warnings):
+			if !warnings.isEmpty { logger.warning("Policy warnings: \(warnings.map(\.message))") }
 			return try handleRequestData(rrd)
 		}
 	}
