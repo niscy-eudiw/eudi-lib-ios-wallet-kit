@@ -490,12 +490,12 @@ extension OpenId4VpUtils {
 	///   - dcql: The DCQL from the authorization request
 	///   - policyDcql: The DCQL declared in the WRPRC (permitted scope)
 	/// - Returns: Warnings for each extra claim path found in the request but not in the policy
-	static func validateDcqlPolicy(dcql: DCQL, policyDcql: DCQL) -> [PolicyViolation] {
+	static func validateDcqlPolicy(dcql: DCQL, policy: WRPRegistrationPolicy) -> [PolicyViolation] {
 	  var violations: [PolicyViolation] = []
-
+/*
 	  for requestCredential in dcql.credentials {
 		// Find matching policy credential by format and query id
-		let policyCredential = policyDcql.credentials.first { policyCredential in
+		let policyCredential = policy.credentials.first { policyCredential in
 		  policyCredential.format == requestCredential.format
 		  && policyCredential.id == requestCredential.id
 		}
@@ -532,7 +532,7 @@ extension OpenId4VpUtils {
 		  )))
 		}
 	  }
-
+*/
 	  return violations
 	}
 

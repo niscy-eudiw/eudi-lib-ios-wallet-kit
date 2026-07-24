@@ -23,6 +23,7 @@ import WalletStorage
 import SwiftCBOR
 import SwiftyJSON
 import JOSESwift
+import JSONWebSignature
 import protocol JSONWebAlgorithms.JWKRepresentable
 import struct JSONWebAlgorithms.SecKeyExtended
 import struct JSONWebKey.JWK
@@ -641,10 +642,14 @@ extension RegistrationCertificatePolicy {
 	  RegistrationCertificatePolicy(
 		certificateTrust: certificateTrust,
 		validatePolicy: { _, wrprc, dcql in
-		  guard let permittedDcql = await policyDcql(wrprc) else {
+			do {
+				let jws = try JWS(jwsString: wrprc.jwt)
+				let policy = try JSONDecoder().decode(WRPRegistrationPolicy.self, from: jws.payload)
+				return  ["":OpenId4VpUtils.validateDcqlPolicy(dcql: dcql, policy: policy)]
+			} catch {
+				print(error)
 			  return [:]
 		  }
-			return  ["":OpenId4VpUtils.validateDcqlPolicy(dcql: dcql, policyDcql: permittedDcql)]
 		}
 	  )
 	}
