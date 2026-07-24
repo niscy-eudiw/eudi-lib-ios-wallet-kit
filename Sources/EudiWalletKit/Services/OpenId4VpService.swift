@@ -392,7 +392,8 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 			errorDispatchPolicy: .allClients,
 			session: networking,
 			responseEncryptionConfiguration: openID4VpConfig.responseEncryptionConfiguration ?? .default(),
-			registrationCertificatePolicy: openID4VpConfig.registrationCertificatePolicy)
+			registrationCertificatePolicy: openID4VpConfig.registrationCertificatePolicy ??
+				.default(certificateTrust: { _ in true}, policyDcql: { _ in nil}))
 		return res
 	}
 

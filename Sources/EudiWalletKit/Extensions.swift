@@ -32,6 +32,8 @@ import struct OpenID4VP.RegistrationCertificatePolicy
 import struct OpenID4VP.DCQL
 import typealias OpenID4VP.CertificateTrust
 import struct OpenID4VP.WRPRegistrationCertificate
+import enum OpenID4VP.PolicyViolation
+import struct OpenID4VP.PolicyViolationError
 
 extension String {
 	public func translated() -> String {
@@ -611,9 +613,20 @@ extension EudiWallet {
 	}
 }
 
+extension PolicyViolation {
+	var message: String {
+		switch self {
+		case .warning(let w):
+			w.message
+		case .error(let e):
+			e.message
+		}
+	}
+}
+
 // MARK: - DCQL Policy Validation
 
-public extension RegistrationCertificatePolicy {
+extension RegistrationCertificatePolicy {
 	
 	/// Creates a default policy that validates certificate trust and checks
 	/// that the request DCQL does not exceed the scope declared in the WRPRC.
