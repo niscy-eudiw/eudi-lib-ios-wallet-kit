@@ -115,16 +115,16 @@ public final class OpenId4VpService: @unchecked Sendable, PresentationService {
 		guard status != .error, let openid4VPURI = URL(string: openid4VPlink) else { throw WalletError(description: "Invalid link \(openid4VPlink)", code: .invalidQueryResolution) }
 		openId4Vp = OpenID4VP(walletConfiguration: getWalletConf())
 		switch await openId4Vp.authorize(fetcher: Fetcher<String>(session: networking), poster: Poster(session: networking), url: openid4VPURI)  {
-		case .notSecured(data: let rrd, policyWarnings: let warnings):
-			if !warnings.isEmpty { logger.warning("Policy warnings: \(warnings.mapValues{$0.map(\.message)})") }
+		case .notSecured(data: let rrd, policyViolations: let violations):
+			if !violations.isEmpty { logger.warning("Policy warnings: \(violations.mapValues{$0.map(\.message)})") }
 			if case .redirectUri = rrd.client { return try handleRequestData(rrd) }
 			else { throw WalletError(description: "Not secured request", code: .notSecuredRequest) }
 		case .invalidResolution(error: let error, dispatchDetails: let details):
 			logger.error("Invalid resolution: \(error.errorDescription ?? error.localizedDescription)")
 			if let details { logger.error("Details: \(details)") }
 			throw WalletError(description: "OpenID4VP request error: \(readerCertificateValidationMessage ?? error.errorDescription ?? error.localizedDescription)", code: readerCertificateValidationMessage != nil ? .trustError : .invalidQueryResolution, innerError: error)
-		case let .jwt(request: rrd, policyWarnings: warnings):
-			if !warnings.isEmpty { logger.warning("Policy warnings: \(warnings.mapValues{$0.map(\.message)})") }
+		case let .jwt(request: rrd, policyViolations: violations):
+			if !violations.isEmpty { logger.warning("Policy warnings: \(violations.mapValues{$0.map(\.message)})") }
 			return try handleRequestData(rrd)
 		}
 	}
