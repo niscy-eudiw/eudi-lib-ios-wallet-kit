@@ -13,6 +13,7 @@ Or configure the SwiftData model container directly:
 ```swift
 let modelConfiguration = ModelConfiguration(groupContainer: .identifier(Self.appGroup))
 let modelContainer = try! ModelContainer(for: SwiftDataStoredDocument.self, configurations: modelConfiguration)
+let storageService = SwiftDataStorageService(modelContainer: modelContainer)
 ```
 
 ## v0.50.0
