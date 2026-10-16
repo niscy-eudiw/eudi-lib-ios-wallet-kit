@@ -1,4 +1,4 @@
-## Unreleased
+## v0.56.0
 
 - Add `TrustConfiguration.readerTrustPolicy` for OpenID4VP reader access certificates, defaulting to `.enforce`. With `.warning`, valid signed requests may proceed with an untrusted certificate chain; signature verification and certificate-chain parsing remain required.
 
