@@ -253,22 +253,31 @@ func handleStatusChange(_ newValue: TransferStatus) async {
 	}
 
 	public func userSelected(_ b: Bool, _ items: RequestItems?, _ deviceNameSpaces: RequestDeviceNameSpaces? = nil) async {
+        responsePreparationError = nil
+        guard let sessionEncryption, let deviceRequest,
+              let engagementKeyID = deviceEngagement?.privateKey?.privateKeyId else {
+            responsePreparationError = MdocHelpers.makeError(code: .sessionEncryptionNotInitialized)
+            return
+        }
 		status = .userSelected
-		responsePreparationError = nil
 		documentIds = []
 		zkpDocumentIds = []
 		preparedClaims = []
 		responseIncludesAllSelectedClaims = false
 		let resError = await MdocHelpers.getSessionDataToSend(sessionEncryption: sessionEncryption, status: .error, docToSend: DeviceResponse(status: 0))
-		var bytesToSend = try! resError.get()
+        var bytesToSend: (Data, Data)
+        do { bytesToSend = try resError.get() }
+        catch { responsePreparationError = error; return }
 		deviceResponseBytes = bytesToSend.1
 		var errorToSend: Error?
 		defer {
 			responsePreparationError = Task.isCancelled ? CancellationError() : errorToSend
-			if !Task.isCancelled {
+            if !Task.isCancelled && deviceEngagement?.privateKey?.privateKeyId == engagementKeyID {
 				logger.info("Prepare \(bytesToSend.0.count) bytes to send")
 				bleTranport.sendData(bytesToSend.0)
-			}
+            } else if !Task.isCancelled {
+                responsePreparationError = MdocHelpers.makeError(code: .sessionEncryptionNotInitialized)
+            }
 		}
 		if !b {
 			errorToSend = MdocHelpers.makeError(code: .userRejected)
@@ -276,11 +285,11 @@ func handleStatusChange(_ newValue: TransferStatus) async {
 		}
 		if let items {
 			do {
-				let docTypeReq = deviceRequest?.docRequests.first?.itemsRequest.docType ?? ""
+				let docTypeReq = deviceRequest.docRequests.first?.itemsRequest.docType ?? ""
 				let compactDocMetadata = docMetadata.compactMapValues { $0 }
-				let eReaderKey = sessionEncryption!.sessionKeys.publicKey
+				let eReaderKey = sessionEncryption.sessionKeys.publicKey
 				guard let (drToSend, validItems, errorItems, resMetadata, resDocIds, resZkpDocIds) = try await MdocHelpers.getDeviceResponseToSend(
-					deviceRequest: deviceRequest!,
+					deviceRequest: deviceRequest,
 					issuerSigned: docs,
 					docMetadata: compactDocMetadata,
 					selectedItems: items,
