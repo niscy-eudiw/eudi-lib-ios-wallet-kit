@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Add `EudiWallet.resumeExternalAuthorization(with:)` to forward OpenID4VCI redirects delivered through the app's URL handler to the active issuance flow. Call it on the main actor before handling other deep links; consumed redirects close the browser session and preserve OAuth state and issuer validation.
+
 - Add `OpenId4VpConfiguration.jarSigningAlgorithms` to set the JWS algorithms accepted for signed request objects and advertised in `wallet_metadata`. `nil` keeps the library default (ES256).
 
 - Add `OpenId4VpConfiguration.requiresJarEncryption`, defaulting to `true` (current behavior). With `false`, the wallet accepts a signed, unencrypted request object fetched with `request_uri_method=post`; the signature and verifier certificate are still validated.

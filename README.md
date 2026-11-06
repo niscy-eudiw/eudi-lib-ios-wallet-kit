@@ -605,7 +605,7 @@ When the transaction code is provided, the issuance process can be resumed by ca
 
 ### Authorization redirects from native apps
 
-When an issuer uses a native authentication app (such as FINEID), the redirect can
+When an issuer uses a native authentication app, the redirect can
 arrive through the wallet's URL handler instead of the browser session. Forward it
 to the active issuance flow:
 

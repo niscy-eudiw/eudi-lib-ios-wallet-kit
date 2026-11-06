@@ -224,6 +224,29 @@ let newDocs = try await wallet.issueDocumentsByOfferUrl(
 For the authorization code flow to work, the redirect URI must be specified via the `authFlowRedirectionURI` parameter of ``OpenId4VciConfiguration``.
 The user is redirected in an authorization web view to the issuer's authorization endpoint. After the user authenticates and authorizes the request, the issuer redirects the user back to the application with an authorization code. The library exchanges the authorization code for an access token and issues the document.
 
+### Authorization redirects from native apps
+
+When an issuer uses a native authentication app, the redirect can arrive through
+the wallet's URL handler instead of the browser session. Forward it to the active
+issuance flow before handling other deep links:
+
+```swift
+.onOpenURL { url in
+    if wallet.resumeExternalAuthorization(with: url) {
+        return
+    }
+    // Handle other wallet deep links here.
+}
+```
+
+Call `resumeExternalAuthorization(with:)` on the main actor from SwiftUI
+`onOpenURL` or `application(_:open:options:)`. It returns `false` if there is no
+pending authorization or the URL matches neither the configured OAuth redirect
+URI nor a registered presentation scheme. When it returns `true`, the browser
+session closes and the original issuance call continues. OAuth `state` and `iss`
+are passed through the existing validation. Only one browser authorization can
+be active at a time.
+
 ### Pre-Authorization code flow
 
 When Issuer supports the pre-authorization code flow, the resolved offer will also contain the corresponding

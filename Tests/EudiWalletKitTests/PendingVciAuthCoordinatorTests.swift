@@ -13,7 +13,7 @@ struct PendingVciAuthCoordinatorTests {
         let outcome: AsWebOutcome = try await withCheckedThrowingContinuation { continuation in
             try! coordinator.start(id: id, continuation: continuation, redirectURI: redirectURI,
                                    presentationSchemes: ["wallet"], cancel: { cancellations += 1 })
-            let url = URL(string: "wallet://authorize/callback?code=fineid-code&state=expected&iss=https%3A%2F%2Fissuer.example")!
+            let url = URL(string: "wallet://authorize/callback?code=authorization-code&state=expected&iss=https%3A%2F%2Fissuer.example")!
             #expect(coordinator.resume(with: url))
             #expect(!coordinator.resume(with: url))
             coordinator.complete(id: id, url: nil, error: URLError(.cancelled))
@@ -22,7 +22,7 @@ struct PendingVciAuthCoordinatorTests {
             Issue.record("OAuth callback must not be classified as a presentation request")
             return
         }
-        #expect(code == "fineid-code")
+        #expect(code == "authorization-code")
         #expect(state == "expected")
         #expect(iss == "https://issuer.example")
         #expect(cancellations == 1)
