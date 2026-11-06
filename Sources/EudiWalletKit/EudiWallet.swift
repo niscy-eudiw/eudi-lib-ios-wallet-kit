@@ -403,6 +403,18 @@ public final class EudiWallet: ObservableObject, @unchecked Sendable {
 		return try await vciService.resumePendingIssuance(pendingDoc: pendingDoc, webUrl: webUrl, credentialOptions: credentialOptions, keyOptions: keyOptions)
 	}
 
+	/// Forward a redirect delivered by a native authentication app to the active
+	/// OpenID4VCI browser authorization session. Call this from SwiftUI `onOpenURL`
+	/// or `application(_:open:options:)` when the issuer returns outside the browser.
+	/// The existing issuance call continues with the authorization response, including
+	/// the normal OAuth state and issuer validation.
+	/// - Returns: `true` if the URL was consumed by the pending authorization session.
+	@MainActor
+	@discardableResult
+	public func resumeExternalAuthorization(with url: URL) -> Bool {
+		PendingVciAuthCoordinator.shared.resume(with: url)
+	}
+
 	// Get fallback service or create new config
 	func autoRegisterVciConfiguration(_ urlString: String, _ authFlowRedirectionURI: URL?) async throws -> OpenId4VciService {
 		// Todo: validate tot pre-registered isser by a trusted list

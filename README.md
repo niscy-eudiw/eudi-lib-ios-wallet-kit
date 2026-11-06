@@ -603,6 +603,28 @@ From the user's perspective, the application must provide a way to input the tra
 After user acceptance of the offer, the selected documents can be issued using the `issueDocumentsByOfferUrl(offerUri:docTypes:txCodeValue:configuration:)` method.
 When the transaction code is provided, the issuance process can be resumed by calling the above-mentioned method and passing the transaction code in the `txCodeValue` parameter.
 
+### Authorization redirects from native apps
+
+When an issuer uses a native authentication app (such as FINEID), the redirect can
+arrive through the wallet's URL handler instead of the browser session. Forward it
+to the active issuance flow:
+
+```swift
+.onOpenURL { url in
+    if wallet.resumeExternalAuthorization(with: url) {
+        return
+    }
+    // Handle other wallet deep links here.
+}
+```
+
+Call `resumeExternalAuthorization(with:)` on the main actor. It returns `false` if
+there is no pending authorization or the URL matches neither the configured OAuth
+redirect URI nor a registered presentation scheme. When it returns `true`, the
+browser session closes and the original issuance call continues. OAuth `state` and
+`iss` are passed through the existing validation. Only one browser authorization
+can be active at a time.
+
 ### Dynamic issuance
 
 Wallet kit supports the Dynamic [PID based issuance](https://github.com/eu-digital-identity-wallet/eudi-wallet-product-roadmap/issues/82)

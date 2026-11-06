@@ -1060,41 +1060,37 @@ public actor OpenId4VciService {
 			if activateState != .foregroundActive { try await Task.sleep(nanoseconds: 1_000_000_000) }
 		}
 		#endif
-		simpleAuthWebContext = SimpleAuthenticationPresentationContext()
-		let lock = NSLock()
-		return try await withCheckedThrowingContinuation { [redirectUrl = config.authFlowRedirectionURI.scheme!] continuation in
-			var nillableContinuation: CheckedContinuation<AsWebOutcome, Error>? = continuation
-			let authenticationSession = ASWebAuthenticationSession(url: authorizationCodeURL, callbackURLScheme: redirectUrl) { url, error in
-				lock.lock()
-				defer { lock.unlock() }
-				if let error {
-					nillableContinuation?.resume(throwing: WalletError.authRequestFailed(error: error))
-					nillableContinuation = nil
+		let coordinator = PendingVciAuthCoordinator.shared
+		let redirectURI = await config.authFlowRedirectionURI
+		let id = UUID()
+		return try await withTaskCancellationHandler {
+			try await withCheckedThrowingContinuation { continuation in
+				guard !Task.isCancelled else {
+					continuation.resume(throwing: CancellationError())
 					return
 				}
-				guard let url else {
-					nillableContinuation?.resume(throwing: WalletError(description: "Authorization response does not include a url", code: .authorizationFailed))
-					nillableContinuation = nil
+				let authenticationSession = ASWebAuthenticationSession(url: authorizationCodeURL, callbackURLScheme: redirectURI.scheme!) { url, error in
+					Task { @MainActor in
+						coordinator.complete(id: id, url: url, error: error)
+					}
+				}
+				do {
+					try coordinator.start(id: id, continuation: continuation, redirectURI: redirectURI,
+						presentationSchemes: Bundle.main.getURLSchemas() ?? [], cancel: { authenticationSession.cancel() })
+				} catch {
+					continuation.resume(throwing: error)
 					return
 				}
-				if let schemes = Bundle.main.getURLSchemas(), schemes.first(where: { url.absoluteString.hasPrefix($0 + "://") }) != nil {
-					// dynamic issuing case
-					self.logger.info("Dynamic issuance url: \(url)")
-					nillableContinuation?.resume(returning: .presentation_request(url))
-					nillableContinuation = nil
-				} else if let code = url.getQueryStringParameter("code") {
-					self.logger.info("Authorization code: \(code)")
-					let state = url.getQueryStringParameter("state")
-					let iss = url.getQueryStringParameter("iss")
-					nillableContinuation?.resume(returning: .code(code, state: state, iss: iss))
-					nillableContinuation = nil
-				} else {
-					nillableContinuation?.resume(throwing: WalletError(description: "Authorization response does not include a code", code: .authorizationFailed))
-					nillableContinuation = nil
+				simpleAuthWebContext = SimpleAuthenticationPresentationContext()
+				authenticationSession.presentationContextProvider = simpleAuthWebContext
+				if !authenticationSession.start() {
+					coordinator.complete(id: id, url: nil, error: WalletError(description: "Unable to start authorization session", code: .authorizationFailed))
 				}
 			}
-			authenticationSession.presentationContextProvider = simpleAuthWebContext
-			authenticationSession.start()
+		} onCancel: {
+			Task { @MainActor in
+				coordinator.cancel(id: id)
+			}
 		}
 	}
 
